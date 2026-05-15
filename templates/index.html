@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Passagem de Turno</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+<div class="container">
+
+    <!-- HERO -->
+    <div class="hero">
+
+        <h1>📊 Passagem de Turno - MKT ZAP</h1>
+
+        {% if not dados_setores %}
+
+        <div class="upload-card compact">
+
+            <form method="POST" enctype="multipart/form-data">
+
+                <label class="file-label">
+                    📁 Escolher Arquivo
+                    <input type="file" name="arquivo" required hidden>
+                </label>
+
+                <br><br>
+
+                <button class="btn-upload">
+                    🚀 Processar Dados
+                </button>
+
+            </form>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    {% if dados_setores %}
+
+    <form method="GET">
+        <button class="btn-limpar">🔄 Limpar</button>
+    </form>
+
+    <!-- GRID NOVO: 3 + 2 -->
+    <div class="cards-grid">
+
+        <!-- LINHA 1 (3 CARDS) -->
+        <div class="card">
+            <h2>📲 Whats GN</h2>
+            <p>Total: {{ dados_setores["Whats GN"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats GN"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>📊 Whats GV</h2>
+            <p>Total: {{ dados_setores["Whats GV"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats GV"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>🛒 CB Commerce</h2>
+            <p>Total: {{ dados_setores["CB Commerce"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["CB Commerce"]["chamados"] }}</p>
+        </div>
+
+        <!-- LINHA 2 (2 CARDS CENTRALIZADOS) -->
+        <div class="card">
+            <h2>🏬 Whats Franquia</h2>
+            <p>Total: {{ dados_setores["Whats Franquia"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats Franquia"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>⚡ GV Antecipada</h2>
+            <p>Total: {{ gv_antecipada["total"] }}</p>
+            <p>Chamados: {{ gv_antecipada["chamados"] }}</p>
+        </div>
+
+    </div>
+
+    <!-- DIVISOR -->
+    <div class="divider"></div>
+
+    <!-- TOP -->
+    <div class="top-section">
+
+        <div class="card full-width dark-card">
+
+            <h2>🏆 Top Acionamentos</h2>
+
+            {% for nome, valor in top_funcoes %}
+
+                {% if valor != "" %}
+                    <p>{{ nome }}: {{ valor }}</p>
+                {% else %}
+                    <p><strong>{{ nome }}</strong></p>
+                {% endif %}
+
+            {% endfor %}
+
+        </div>
+
+    </div>
+
+    {% endif %}
+
+    <div class="footer">
+        Sistema de Passagem de Turno • Versão 1.0
+    </div>
+
+</div>
+</body>
+</html>
