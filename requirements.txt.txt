@@ -1,5 +1,0 @@
-flask
-pandas
-lxml
-openpyxl
-gunicorn
