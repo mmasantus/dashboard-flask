@@ -1,0 +1,100 @@
+body {
+    font-family: 'Inter', sans-serif;
+    background: #3C8C7E;
+    margin: 0;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1000px;
+    margin: auto;
+    text-align: center;
+}
+
+/* UPLOAD */
+.upload-box {
+    margin-top: 120px;
+}
+
+/* BOTÃO ESCOLHER ARQUIVO */
+.file-label {
+    background: #007bff;
+    color: white;
+    padding: 14px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-block;
+    font-weight: bold;
+    transition: 0.3s;
+    margin-bottom: 15px;
+}
+
+.file-label:hover {
+    background: #0056b3;
+}
+
+/* BOTÃO ENVIAR */
+.btn-upload {
+    background: orange;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: 0.3s;
+}
+
+.btn-upload:hover {
+    background: darkorange;
+}
+
+/* BOTÃO LIMPAR */
+.btn-limpar {
+    background: #33322B;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: 0.3s;
+}
+
+.btn-limpar:hover {
+    background: darkorange;
+}
+
+/* GRID DE CARDS */
+.cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+    margin-top: 20px;
+}
+
+/* CARD PADRÃO */
+.card {
+    background: #EAF6AD;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* TÍTULO DO CARD */
+.card h2 {
+    font-family: 'Poppins', sans-serif;
+    margin-bottom: 10px;
+}
+
+/* TEXTO */
+.card p {
+    margin: 5px 0;
+    font-weight: bold;
+}
+
+/* CARD OCUPANDO LINHA INTEIRA */
+.full-width {
+    grid-column: 1 / -1;
+    text-align: center;
+}

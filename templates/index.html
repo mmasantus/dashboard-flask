@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Passagem de Turno</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Passagem de Turno - MKT ZAP - Experiência CB BR📱</h1>
+
+    {% if not dados_setores %}
+
+    <!-- UPLOAD -->
+    <div class="upload-box">
+
+        <form method="POST" enctype="multipart/form-data">
+
+            <label class="file-label">
+                📁 Escolher Arquivo
+                <input type="file" name="arquivo" required hidden>
+            </label>
+
+            <br>
+
+            <button class="btn-upload" type="submit">
+                🚀 Exibir Dados
+            </button>
+
+        </form>
+
+    </div>
+
+    {% else %}
+
+    <!-- BOTÃO LIMPAR -->
+    <form method="GET">
+        <button class="btn-limpar">🔄 Limpar / Voltar</button>
+    </form>
+
+    <!-- CARDS -->
+    <div class="cards">
+
+        <div class="card">
+            <h2>Whats GN</h2>
+            <p>Total: {{ dados_setores["Whats GN"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats GN"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>Whats GV</h2>
+            <p>Total: {{ dados_setores["Whats GV"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats GV"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>CB Commerce</h2>
+            <p>Total: {{ dados_setores["CB Commerce"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["CB Commerce"]["chamados"] }}</p>
+        </div>
+
+        <div class="card">
+            <h2>Whats Franquia</h2>
+            <p>Total: {{ dados_setores["Whats Franquia"]["total"] }}</p>
+            <p>Chamados: {{ dados_setores["Whats Franquia"]["chamados"] }}</p>
+        </div>
+
+        <!-- TOP FUNÇÕES CENTRALIZADO -->
+        <div class="card full-width">
+            <h2>Principais Registros</h2>
+
+            {% for nome, valor in top_funcoes.items() %}
+                <p>{{ nome }}: {{ valor }}</p>
+            {% endfor %}
+        </div>
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>
