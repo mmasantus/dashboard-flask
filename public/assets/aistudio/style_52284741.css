@@ -1,0 +1,182 @@
+
+body {
+    font-family: 'Inter', sans-serif;
+    background: radial-gradient(circle at top, #2a2f38, #14171c);
+    margin: 0;
+    padding: 20px;
+    color: #fff;
+}
+
+/* ========================= */
+/* CONTAINER */
+/* ========================= */
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+    text-align: center;
+}
+
+/* ========================= */
+/* TÍTULO */
+/* ========================= */
+
+h1 {
+    margin-bottom: 25px;
+}
+
+/* ========================= */
+/* UPLOAD (TELA INICIAL MENOR) */
+/* ========================= */
+
+.hero {
+    margin-top: 60px;
+}
+
+.upload-card {
+    background: rgba(255,255,255,0.06);
+    backdrop-filter: blur(10px);
+    padding: 30px;              /* MENOR */
+    border-radius: 16px;
+    display: inline-block;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.6);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.upload-card.compact {
+    padding: 25px;
+}
+
+/* BOTÕES */
+.file-label {
+    background: linear-gradient(135deg, #2d7dff, #1f5fd1);
+    padding: 14px 22px;
+    border-radius: 12px;
+    cursor: pointer;
+    display: inline-block;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.file-label:hover {
+    transform: scale(1.03);
+}
+
+.btn-upload {
+    background: linear-gradient(135deg, #ff9800, #ff6f00);
+    border: none;
+    padding: 14px 24px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 15px;
+    margin-top: 15px;
+    transition: 0.3s;
+}
+
+.btn-upload:hover {
+    transform: scale(1.03);
+}
+
+.btn-limpar {
+    background: #2d7dff;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 12px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+.btn-limpar:hover {
+    background: #1f66e0;
+}
+
+/* ========================= */
+/* GRID 3 + 2 */
+/* ========================= */
+
+.cards-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 22px;
+    margin-top: 20px;
+    justify-items: center;
+}
+
+/* força alinhamento visual melhor */
+.cards-grid .card {
+    width: 100%;
+    max-width: 320px;
+}
+
+/* ========================= */
+/* CARDS */
+/* ========================= */
+
+.card {
+    background: #262b33;
+    padding: 28px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    transition: 0.3s;
+    text-align: left;
+}
+
+.card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.7);
+}
+
+.card h2 {
+    margin-bottom: 12px;
+}
+
+.card p {
+    margin: 6px 0;
+    color: #d6d6d6;
+    font-weight: bold;
+}
+
+/* ========================= */
+/* TOP ACIONAMENTOS */
+/* ========================= */
+
+.divider {
+    margin: 40px 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #666, transparent);
+}
+
+.top-section {
+    display: flex;
+    justify-content: center;
+}
+
+.dark-card {
+    width: 65%;
+}
+
+/* ========================= */
+/* FOOTER */
+/* ========================= */
+
+.footer {
+    margin-top: 50px;
+    font-size: 12px;
+    color: #888;
+}
+
+/* ========================= */
+/* RESPONSIVO */
+/* ========================= */
+
+@media (max-width: 900px) {
+    .cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .dark-card {
+        width: 100%;
+    }
+}

@@ -6,15 +6,19 @@ import { SectorsAnalytics } from './components/SectorsAnalytics';
 import { TopAcionamentosSection } from './components/TopAcionamentosSection';
 import { DocumentExportSection } from './components/DocumentExportSection';
 import { AtendentesModal } from './components/AtendentesModal';
+import { ProtocolosModal } from './components/ProtocolosModal';
 import { ToastContainer } from './components/Toast';
-import { ProcessedReport, ToastMessage } from './types';
+import { ProcessedReport, ToastMessage, TopAcionamento } from './types';
 import { parseMktzapFile, getDemoReport, processExtractedRows, DEFAULT_GV_PESSOAS } from './utils/fileParser';
+import { saveAs } from 'file-saver';
 import { ShieldCheck, FileSpreadsheet, Sparkles, BarChart2, Layers } from 'lucide-react';
 
 export default function App() {
   const [report, setReport] = useState<ProcessedReport | null>(null);
   const [rawRows, setRawRows] = useState<Record<string, any>[] | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [selectedAcionamento, setSelectedAcionamento] = useState<TopAcionamento | null>(null);
+  const [isProtocolosModalOpen, setIsProtocolosModalOpen] = useState<boolean>(false);
   const [gvPessoas, setGvPessoas] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('mktzap_equipe_experiencia_brasil');
@@ -145,6 +149,86 @@ export default function App() {
     }
   };
 
+  const handleSelectAcionamento = (item: TopAcionamento) => {
+    setSelectedAcionamento(item);
+    setIsProtocolosModalOpen(true);
+  };
+
+  const handleCopyAllTopProtocols = async () => {
+    if (!report || report.topAcionamentos.length === 0) return;
+    let text = `TOP ACIONAMENTOS - LISTA DE PROTOCOLOS\n`;
+    text += `Data: ${report.dataReferencia || new Date().toLocaleDateString('pt-BR')} | Turno: ${report.periodoTurno}\n\n`;
+
+    report.topAcionamentos.forEach((top) => {
+      text += `========================================\n`;
+      text += `${top.rank}º LUGAR: ${top.nome} (${top.quantidade} casos - ${top.percentual.toFixed(1)}%)\n`;
+      text += `========================================\n`;
+      const list = top.protocolos || [];
+      if (list.length === 0) {
+        text += `(Nenhum protocolo extraído)\n\n`;
+      } else {
+        list.forEach((p) => {
+          text += `${p.protocolo}${p.chamado ? ` | Chamado: ${p.chamado}` : ''}${p.responsavel ? ` | Atendente: ${p.responsavel}` : ''}\n`;
+        });
+        text += '\n';
+      }
+    });
+
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast({
+        type: 'success',
+        title: 'Protocolos do Top 3 Copiados!',
+        message: 'Todos os protocolos do Top 3 foram copiados formatados para a área de transferência.',
+      });
+    } catch {
+      addToast({
+        type: 'error',
+        title: 'Erro ao Copiar',
+        message: 'Não foi possível acessar a área de transferência.',
+      });
+    }
+  };
+
+  const handleDownloadAllTopProtocols = () => {
+    if (!report || report.topAcionamentos.length === 0) return;
+    let content = `=================================================================================\n`;
+    content += `MKTZAP - PROTOCOLOS DOS PRINCIPAIS ACIONAMENTOS (TOP 3)\n`;
+    content += `Data: ${report.dataReferencia || new Date().toLocaleDateString('pt-BR')} | Turno: ${report.periodoTurno}\n`;
+    content += `Total Geral de Atendimentos: ${report.totalFinalizados} | Total de Chamados: ${report.totalChamados}\n`;
+    content += `=================================================================================\n\n`;
+
+    report.topAcionamentos.forEach((top) => {
+      content += `---------------------------------------------------------------------------------\n`;
+      content += `${top.rank}º LUGAR: ${top.nome}\n`;
+      content += `Total de Casos: ${top.quantidade} (${top.percentual.toFixed(1)}% do total do turno)\n`;
+      content += `---------------------------------------------------------------------------------\n`;
+
+      const list = top.protocolos || [];
+      if (list.length === 0) {
+        content += `Nenhum protocolo detalhado encontrado.\n\n`;
+      } else {
+        content += `Nº\tPROTOCOLO\tCHAMADO\tATENDENTE / RESPONSÁVEL\tSETOR\tTEMPO\n`;
+        list.forEach((p, idx) => {
+          content += `${idx + 1}\t${p.protocolo}\t${p.chamado || '-'}\t${p.responsavel || '-'}\t${p.setor || '-'}\t${p.tempoOperacao || '-'}\n`;
+        });
+        content += `\nTotal: ${list.length} registros no ${top.rank}º motivo\n\n`;
+      }
+    });
+
+    content += `Gerado automaticamente via Painel Passagem de Turno MKTZAP.\n`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const safeTurno = report.periodoTurno.replace(/[^a-zA-Z0-9]/g, '_');
+    saveAs(blob, `Protocolos_Top_Acionamentos_${safeTurno}.txt`);
+
+    addToast({
+      type: 'success',
+      title: 'Download Concluído!',
+      message: 'Arquivo TXT com os protocolos do Top 3 baixado com sucesso.',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-[#090d14] text-slate-100 flex flex-col font-sans selection:bg-emerald-500 selection:text-slate-950">
       {/* Top Header */}
@@ -195,6 +279,9 @@ export default function App() {
                   topAcionamentos={report.topAcionamentos}
                   demaisCount={report.demaisAcionamentosCount}
                   demaisCasos={report.demaisAcionamentosCasos}
+                  onSelectAcionamento={handleSelectAcionamento}
+                  onCopyAllTopProtocols={handleCopyAllTopProtocols}
+                  onDownloadAllTopProtocols={handleDownloadAllTopProtocols}
                 />
               </div>
 
@@ -294,6 +381,14 @@ export default function App() {
         gvPessoas={gvPessoas}
         onClose={() => setIsAtendentesModalOpen(false)}
         onSave={handleSaveAtendentes}
+      />
+
+      {/* Protocolos Modal for Top Acionamentos */}
+      <ProtocolosModal
+        isOpen={isProtocolosModalOpen}
+        acionamento={selectedAcionamento}
+        onClose={() => setIsProtocolosModalOpen(false)}
+        onShowToast={addToast}
       />
 
       {/* Floating Interactive Toast Container */}

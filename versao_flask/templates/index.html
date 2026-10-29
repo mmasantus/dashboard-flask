@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passagem de Turno MKTZAP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="brand-avatar">
+                <img src="{{ url_for('static', filename='icone.jpg') }}" alt="MKTZAP Logo" onerror="this.style.display='none'">
+            </div>
+            <div>
+                <h1>Passagem de Turno MKTZAP</h1>
+                <p>Consolidação de canais Whats GN, GV, Franquia & CB Commerce (Equipe Experiência Brasil)</p>
+            </div>
+        </div>
+
+        <div class="header-actions" style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="btn-replace" onclick="abrirModalEquipe()" style="cursor: pointer; color: #93c5fd; border-color: rgba(59, 130, 246, 0.4);">
+                👥 Equipe Experiência Brasil
+            </button>
+            {% if dados_setores %}
+            <a href="/" class="btn-clear" onclick="return confirm('Deseja limpar os dados atuais e processar uma nova planilha?')">
+                🔄 Limpar Dados
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- MODAL EQUIPE EXPERIÊNCIA BRASIL -->
+    <div id="modalEquipe" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 1.1rem; color: #fff; font-weight: 700;">👥 Equipe Experiência Brasil</h3>
+                <button type="button" onclick="fecharModalEquipe()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 14px;">
+                Integrantes responsáveis pela fila Whats GV Antecipada. Ao adicionar novos nomes, eles impactam o resultado da planilha.
+            </p>
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="novoIntegrante" placeholder="Nome do atendente (ex: JOÃO SILVA)..." style="flex: 1; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8rem; text-transform: uppercase;">
+                <button type="button" onclick="adicionarIntegrante()" style="background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Adicionar</button>
+            </div>
+            <div id="listaIntegrantes" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 14px;">
+                <button type="button" onclick="restaurarPadraoEquipe()" style="background: transparent; border: none; color: #64748b; font-size: 0.75rem; cursor: pointer;">Restaurar Padrão</button>
+                <button type="button" onclick="fecharModalEquipe()" style="background: #10b981; color: #064e3b; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMAT ERROR NOTIFICATION -->
+    {% if erro_formato %}
+    <div class="alert-box error animate-fade">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-content">
+            <strong>Formato não suportado:</strong>
+            <p>{{ erro_formato }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- UPLOAD ZONE (QUANDO NÃO HÁ DADOS) -->
+    {% if not dados_setores %}
+    <section class="upload-section">
+        <div class="upload-dropzone" id="dropzone">
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="hidden" name="equipe_integrantes" id="hiddenEquipeIntegrantes">
+                <div class="upload-icon-wrapper">
+                    📁
+                </div>
+                <h2>Arraste o relatório do MKTZAP aqui</h2>
+                <p>Ou clique no botão abaixo para selecionar a planilha no seu computador</p>
+
+                <div class="format-badges">
+                    <span class="badge">.html / .htm</span>
+                    <span class="badge">.xlsx / .xls</span>
+                    <span class="badge">.csv</span>
+                </div>
+
+                <label class="btn-select-file">
+                    Escolher Arquivo no Computador
+                    <input type="file" name="arquivo" id="fileInput" accept=".xls,.xlsx,.html,.htm,.csv" required hidden>
+                </label>
+
+                <div id="fileSelectedInfo" class="file-selected-info hidden">
+                    <span id="fileNameDisplay"></span>
+                    <button type="submit" class="btn-process">🚀 Processar Dados do Turno</button>
+                </div>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- CONTEÚDO PROCESSADO -->
+    {% if dados_setores %}
+    <main class="dashboard-content animate-fade">
+
+        <!-- STATUS BAR -->
+        <div class="status-bar">
+            <div class="status-info">
+                <span class="pill-active">✓ Planilha Processada</span>
+                <span class="file-title">{{ nome_arquivo }}</span>
+            </div>
+            <a href="/" class="btn-replace">Trocar Arquivo</a>
+        </div>
+
+        <!-- KPI SUMMARY STRIP -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Total Finalizados</span>
+                <div class="kpi-value font-mono">{{ total_finalizados }}</div>
+                <span class="kpi-sub">Atendimentos no turno</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Total Chamados</span>
+                <div class="kpi-value font-mono text-blue">{{ total_chamados }}</div>
+                <span class="kpi-sub">Tickets abertos</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Taxa de Chamados</span>
+                <div class="kpi-value font-mono text-amber">{{ taxa_geral }}%</div>
+                <span class="kpi-sub">Chamados / Finalizados</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Canal Líder</span>
+                <div class="kpi-value truncate text-purple">{{ canal_lider }}</div>
+                <span class="kpi-sub">Maior volume registrado</span>
+            </div>
+        </div>
+
+        <!-- SECTORS BOARD -->
+        <div class="section-card">
+            <div class="section-header">
+                <div>
+                    <h3>📊 Consolidação por Canal de Atendimento</h3>
+                    <p>Distribuição de chamados e finalizações por fila de atendimento</p>
+                </div>
+                <span class="badge-count">5 canais monitorados</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Canal / Fila</th>
+                            <th class="text-right">Finalizados</th>
+                            <th class="text-right">Chamados</th>
+                            <th class="text-center">Pendências</th>
+                            <th class="text-right">Carga %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="sector-tag dot-green"></span><strong>Whats GN</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats GN"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats GN"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats GN"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-blue"></span><strong>Whats GV</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats GV"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats GV"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats GV"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-purple"></span><strong>Whats GV Antecipada</strong></td>
+                            <td class="text-right font-mono font-bold">{{ gv_antecipada["total"] }}</td>
+                            <td class="text-right font-mono">{{ gv_antecipada["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(gv_antecipada["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-amber"></span><strong>Whats Franquia</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats Franquia"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats Franquia"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats Franquia"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-cyan"></span><strong>Whats CB Commerce</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["CB Commerce"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["CB Commerce"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["CB Commerce"]["percentual"]) }}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2 COLUNAS: TOP ACIONAMENTOS + DOCUMENTO WORD -->
+        <div class="dual-grid">
+
+            <!-- COLUNA ESQUERDA: TOP ACIONAMENTOS -->
+            <div class="section-card">
+                <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3>🏆 Top Acionamentos (Função do Sistema)</h3>
+                        <p style="font-size:0.75rem; color:#94a3b8;">Clique em qualquer motivo para ver e copiar os protocolos</p>
+                    </div>
+                    {% if top_funcoes %}
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" onclick="copiarTodosTop3()" style="background:#1e293b; border:1px solid #334155; color:#e2e8f0; font-size:0.72rem; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600;" title="Copiar todos os protocolos do Top 3">
+                            📋 Copiar Top 3
+                        </button>
+                        <button type="button" onclick="baixarTxtGeralTop3()" style="background:#064e3b; border:1px solid #059669; color:#6ee7b7; font-size:0.72rem; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600;" title="Baixar relatório TXT dos Top 3">
+                            💾 Baixar TXT
+                        </button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="top-list">
+                    {% for item in top_funcoes %}
+                    <div class="top-item medal-{{ item.pos }}" onclick="abrirModalProtocolos({{ item.pos }})" style="cursor:pointer; transition:transform 0.15s, border-color 0.15s;" title="Clique para ver os protocolos deste acionamento">
+                        <div class="top-item-header">
+                            <span class="rank-badge">{{ item.pos }}º</span>
+                            <span class="rank-name" style="flex:1; margin:0 8px; font-weight:600;">{{ item.nome }}</span>
+                            <span class="rank-count font-mono">{{ item.quantidade }} ({{ item.percentual }}%)</span>
+                            <span style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#6ee7b7; border:1px solid #059669; padding:2px 6px; border-radius:4px; margin-left:6px;">🔍 Ver</span>
+                        </div>
+                        <div class="rank-bar">
+                            <div class="rank-fill" style="width: {{ item.percentual }}%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if demais_count > 0 %}
+                    <div class="info-note">
+                        ℹ️ Demais casos tiveram apenas 1 registro (+{{ demais_count }} funções adicionais)
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- COLUNA DIREITA: PRÉ-VISUALIZAÇÃO E DOWNLOAD WORD -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h3>📋 Ata de Passagem de Turno</h3>
+                        <p>Modelo oficial atualizado com os dados extraídos</p>
+                    </div>
+                </div>
+
+                <div class="word-preview-box">
+                    <pre id="whatsappText" class="font-mono">📋 Passagem de Turno MKTZAP
+🕗 {{ periodo_turno }} | 📅{{ data_atual }}
+
+━━━━━━━━━━━━━━
+📲 Whats GN
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats GN"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats GN"]["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats GV
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats GV"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats GV"]["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats GV Antecipada 
+✅ Finalizados: {{ "%02d"|format(gv_antecipada["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(gv_antecipada["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats Franquia
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats Franquia"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats Franquia"]["chamados"]) }}
+⚠️ Pendências: 00
+
+📲 Whats CB Commerce
+✅ Finalizados: {{ "%02d"|format(dados_setores["CB Commerce"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["CB Commerce"]["chamados"]) }}
+⚠️ Pendências: 00
+
+🏆 Top Acionamentos
+
+
+{% for item in top_funcoes %}{{ item.pos }}º {{ item.nome }}: {{ item.quantidade }}
+{% endfor %}</pre>
+                </div>
+
+                <!-- FORMULÁRIO PARA DOWNLOAD WORD -->
+                <form action="/download_word" method="POST" class="download-actions">
+                    <input type="hidden" name="gn_fin" value="{{ dados_setores['Whats GN']['total'] }}">
+                    <input type="hidden" name="gn_cha" value="{{ dados_setores['Whats GN']['chamados'] }}">
+                    <input type="hidden" name="gn_pen" value="0">
+
+                    <input type="hidden" name="gv_fin" value="{{ dados_setores['Whats GV']['total'] }}">
+                    <input type="hidden" name="gv_cha" value="{{ dados_setores['Whats GV']['chamados'] }}">
+                    <input type="hidden" name="gv_pen" value="0">
+
+                    <input type="hidden" name="gva_fin" value="{{ gv_antecipada['total'] }}">
+                    <input type="hidden" name="gva_cha" value="{{ gv_antecipada['chamados'] }}">
+                    <input type="hidden" name="gva_pen" value="0">
+
+                    <input type="hidden" name="fra_fin" value="{{ dados_setores['Whats Franquia']['total'] }}">
+                    <input type="hidden" name="fra_cha" value="{{ dados_setores['Whats Franquia']['chamados'] }}">
+                    <input type="hidden" name="fra_pen" value="0">
+
+                    <input type="hidden" name="cb_fin" value="{{ dados_setores['CB Commerce']['total'] }}">
+                    <input type="hidden" name="cb_cha" value="{{ dados_setores['CB Commerce']['chamados'] }}">
+                    <input type="hidden" name="cb_pen" value="0">
+
+                    {% for item in top_funcoes %}
+                    <input type="hidden" name="top{{ item.pos }}" value="{{ item.pos }}º {{ item.nome }}: {{ item.quantidade }}">
+                    {% endfor %}
+
+                    <input type="hidden" name="periodo" value="{{ periodo_turno }}">
+                    <input type="hidden" name="data" value="{{ data_atual }}">
+
+                    <button type="button" class="btn-copy" onclick="copiarWhatsApp()">
+                        📋 Copiar para WhatsApp
+                    </button>
+
+                    <button type="submit" class="btn-download">
+                        📥 Baixar Arquivo Word (.docx)
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+    </main>
+    {% endif %}
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <p>Sistema de Passagem de Turno MKTZAP • Versão 2.0</p>
+    </footer>
+
+</div>
+
+<!-- SCRIPT DE INTERATIVIDADE -->
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileSelectedInfo = document.getElementById('fileSelectedInfo');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const dropzone = document.getElementById('dropzone');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                fileNameDisplay.textContent = '📄 Arquivo: ' + file.name;
+                fileSelectedInfo.classList.remove('hidden');
+            }
+        });
+    }
+
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-active');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                fileNameDisplay.textContent = '📄 Arquivo: ' + e.dataTransfer.files[0].name;
+                fileSelectedInfo.classList.remove('hidden');
+            }
+        });
+    }
+
+    const DEFAULT_EQUIPE = [
+        "RAFAELLA CRISTINY JACINTO CAMILO",
+        "VANESSA DUARTE",
+        "MARCIO MIRANDA ALVES DOS SANTOS",
+        "WILLIANE BORGES",
+        "LUIS GUILHERME TEODORO DOS SANTOS",
+        "ADRIANA CONCEICAO DE OLIVEIRA",
+        "DANIELA COELHO"
+    ];
+
+    let equipeAtiva = (() => {
+        try {
+            const saved = localStorage.getItem('mktzap_equipe_experiencia_brasil');
+            if (saved) return JSON.parse(saved);
+        } catch(e) {}
+        return [...DEFAULT_EQUIPE];
+    })();
+
+    function syncEquipeForm() {
+        const hid = document.getElementById('hiddenEquipeIntegrantes');
+        if (hid) {
+            hid.value = equipeAtiva.join(',');
+        }
+    }
+    syncEquipeForm();
+
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', () => {
+            syncEquipeForm();
+        });
+    }
+
+    function abrirModalEquipe() {
+        renderListaEquipe();
+        document.getElementById('modalEquipe').classList.remove('hidden');
+    }
+
+    function fecharModalEquipe() {
+        document.getElementById('modalEquipe').classList.add('hidden');
+    }
+
+    function renderListaEquipe() {
+        const div = document.getElementById('listaIntegrantes');
+        div.innerHTML = '';
+        equipeAtiva.forEach((nome, idx) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#1e293b;padding:8px 12px;border-radius:8px;font-size:0.75rem;color:#f1f5f9;';
+            item.innerHTML = `
+                <span style="font-weight:600;">${nome}</span>
+                <button type="button" onclick="removerIntegrante(${idx})" style="background:transparent;border:none;color:#f43f5e;font-size:0.9rem;cursor:pointer;" title="Remover">✕</button>
+            `;
+            div.appendChild(item);
+        });
+    }
+
+    function salvarEquipe() {
+        localStorage.setItem('mktzap_equipe_experiencia_brasil', JSON.stringify(equipeAtiva));
+        syncEquipeForm();
+        renderListaEquipe();
+    }
+
+    function adicionarIntegrante() {
+        const inp = document.getElementById('novoIntegrante');
+        const val = inp.value.trim().toUpperCase();
+        if (val && !equipeAtiva.includes(val)) {
+            equipeAtiva.push(val);
+            inp.value = '';
+            salvarEquipe();
+        }
+    }
+
+    function removerIntegrante(idx) {
+        equipeAtiva.splice(idx, 1);
+        salvarEquipe();
+    }
+
+    function restaurarPadraoEquipe() {
+        equipeAtiva = [...DEFAULT_EQUIPE];
+        salvarEquipe();
+    }
+
+    function copiarWhatsApp() {
+        const text = document.getElementById('whatsappText').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('✓ Modelo copiado para a área de transferência! Pronto para colar no WhatsApp.');
+        });
+    }
+    <!-- MODAL PROTOCOLOS DO TOP ACIONAMENTO -->
+    <div id="modalProtocolos" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 120; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #334155; border-radius: 20px; max-width: 650px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.7); overflow: hidden;">
+            <!-- Header Modal -->
+            <div style="padding: 20px 24px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span id="modalProtoBadge" style="background: #064e3b; color: #6ee7b7; border: 1px solid #059669; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px;">1º Lugar</span>
+                        <h3 id="modalProtoTitulo" style="font-size: 1.1rem; color: #fff; font-weight: 700;">Motivo</h3>
+                    </div>
+                    <p id="modalProtoSubtitulo" style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Casos encontrados</p>
+                </div>
+                <button type="button" onclick="fecharModalProtocolos()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; padding: 4px;">✕</button>
+            </div>
+
+            <!-- Barra de Ações e Filtro -->
+            <div style="padding: 14px 24px; background: rgba(15,23,42,0.6); border-bottom: 1px solid #1e293b; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                <input type="text" id="filtroProtocolos" oninput="filtrarProtocolos()" placeholder="Pesquisar protocolo, atendente ou chamado..." style="flex: 1; min-width: 200px; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8rem;">
+                <button type="button" onclick="copiarTodosDoModal()" style="background: #10b981; color: #064e3b; border: none; padding: 8px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                    📋 Copiar Todos
+                </button>
+                <button type="button" onclick="baixarTxtDoModal()" style="background: #1e293b; color: #93c5fd; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                    💾 Baixar TXT
+                </button>
+                <button type="button" onclick="baixarCsvDoModal()" style="background: #1e293b; color: #6ee7b7; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                    📊 Baixar CSV
+                </button>
+            </div>
+
+            <!-- Lista de Protocolos -->
+            <div id="listaProtocolosContainer" style="padding: 16px 24px; overflow-y: auto; flex: 1; max-height: 400px; display: flex; flex-direction: column; gap: 8px;">
+            </div>
+
+            <!-- Footer Modal -->
+            <div style="padding: 14px 24px; border-top: 1px solid #1e293b; background: #090d14; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #94a3b8;">
+                <span id="modalProtoContador">Exibindo 0 protocolos</span>
+                <button type="button" onclick="fecharModalProtocolos()" style="background: #334155; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">Fechar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT DE PROTOCOLOS -->
+    <script>
+        const TOP_FUNCOES_DATA = {{ top_funcoes | tojson | safe if top_funcoes else '[]' }};
+        let acionamentoAtivo = null;
+
+        function abrirModalProtocolos(pos) {
+            const item = TOP_FUNCOES_DATA.find(f => f.pos === pos);
+            if (!item) return;
+            acionamentoAtivo = item;
+
+            document.getElementById('modalProtoBadge').textContent = `${item.pos}º Lugar`;
+            document.getElementById('modalProtoTitulo').textContent = item.nome;
+            document.getElementById('modalProtoSubtitulo').textContent = `${item.quantidade} casos registrados (${item.percentual}% do turno)`;
+            document.getElementById('filtroProtocolos').value = '';
+
+            renderListaProtocolos(item.protocolos || []);
+            document.getElementById('modalProtocolos').classList.remove('hidden');
+        }
+
+        function fecharModalProtocolos() {
+            document.getElementById('modalProtocolos').classList.add('hidden');
+        }
+
+        function renderListaProtocolos(lista) {
+            const container = document.getElementById('listaProtocolosContainer');
+            container.innerHTML = '';
+
+            if (lista.length === 0) {
+                container.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.8rem;">Nenhum protocolo encontrado para este motivo.</div>';
+                document.getElementById('modalProtoContador').textContent = 'Exibindo 0 de 0 protocolos';
+                return;
+            }
+
+            lista.forEach((p, idx) => {
+                const itemDiv = document.createElement('div');
+                itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:10px 14px; border-radius:8px; font-size:0.8rem;';
+                
+                const metaInfo = [];
+                if (p.chamado) metaInfo.push(`Chamado: ${p.chamado}`);
+                if (p.responsavel) metaInfo.push(`Atendente: ${p.responsavel}`);
+                if (p.setor) metaInfo.push(`Setor: ${p.setor}`);
+
+                itemDiv.innerHTML = `
+                    <div>
+                        <div style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#38bdf8;">
+                            #${idx + 1} • ${p.protocolo}
+                        </div>
+                        ${metaInfo.length > 0 ? `<div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">${metaInfo.join(' | ')}</div>` : ''}
+                    </div>
+                    <button type="button" onclick="copiarTexto('${p.protocolo}')" style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:4px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer;" title="Copiar protocolo">
+                        Copiar
+                    </button>
+                `;
+                container.appendChild(itemDiv);
+            });
+
+            const total = (acionamentoAtivo && acionamentoAtivo.protocolos) ? acionamentoAtivo.protocolos.length : lista.length;
+            document.getElementById('modalProtoContador').textContent = `Exibindo ${lista.length} de ${total} protocolos`;
+        }
+
+        function filtrarProtocolos() {
+            if (!acionamentoAtivo || !acionamentoAtivo.protocolos) return;
+            const termo = document.getElementById('filtroProtocolos').value.toLowerCase().trim();
+            if (!termo) {
+                renderListaProtocolos(acionamentoAtivo.protocolos);
+                return;
+            }
+            const filtrados = acionamentoAtivo.protocolos.filter(p => 
+                (p.protocolo && p.protocolo.toLowerCase().includes(termo)) ||
+                (p.chamado && p.chamado.toLowerCase().includes(termo)) ||
+                (p.responsavel && p.responsavel.toLowerCase().includes(termo)) ||
+                (p.setor && p.setor.toLowerCase().includes(termo))
+            );
+            renderListaProtocolos(filtrados);
+        }
+
+        function copiarTexto(texto) {
+            navigator.clipboard.writeText(texto).then(() => {
+                alert(`✓ Copiado: ${texto}`);
+            });
+        }
+
+        function copiarTodosDoModal() {
+            if (!acionamentoAtivo || !acionamentoAtivo.protocolos || acionamentoAtivo.protocolos.length === 0) return;
+            const texto = acionamentoAtivo.protocolos.map(p => p.protocolo).join('\n');
+            navigator.clipboard.writeText(texto).then(() => {
+                alert(`✓ Todos os ${acionamentoAtivo.protocolos.length} protocolos de "${acionamentoAtivo.nome}" copiados!`);
+            });
+        }
+
+        function baixarTxtDoModal() {
+            if (!acionamentoAtivo || !acionamentoAtivo.protocolos || acionamentoAtivo.protocolos.length === 0) return;
+            let conteudo = `=========================================================\n`;
+            conteudo += `MKTZAP - PROTOCOLOS: ${acionamentoAtivo.pos}º ${acionamentoAtivo.nome}\n`;
+            conteudo += `Total de Casos: ${acionamentoAtivo.quantidade} (${acionamentoAtivo.percentual}%)\n`;
+            conteudo += `=========================================================\n\n`;
+            conteudo += `Nº\tPROTOCOLO\tCHAMADO\tATENDENTE\tSETOR\n`;
+            acionamentoAtivo.protocolos.forEach((p, idx) => {
+                conteudo += `${idx+1}\t${p.protocolo}\t${p.chamado||'-'}\t${p.responsavel||'-'}\t${p.setor||'-'}\n`;
+            });
+            const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Protocolos_${acionamentoAtivo.pos}_${acionamentoAtivo.nome.replace(/[^a-zA-Z0-9]/g, '_')}.txt`;
+            a.click();
+        }
+
+        function baixarCsvDoModal() {
+            if (!acionamentoAtivo || !acionamentoAtivo.protocolos || acionamentoAtivo.protocolos.length === 0) return;
+            let csv = `Posicao,Protocolo,Chamado,Responsavel,Setor,Motivo\n`;
+            acionamentoAtivo.protocolos.forEach((p, idx) => {
+                csv += `"${idx+1}","${p.protocolo}","${p.chamado||''}","${p.responsavel||''}","${p.setor||''}","${acionamentoAtivo.nome}"\n`;
+            });
+            const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Protocolos_${acionamentoAtivo.pos}_${acionamentoAtivo.nome.replace(/[^a-zA-Z0-9]/g, '_')}.csv`;
+            a.click();
+        }
+
+        function copiarTodosTop3() {
+            if (!TOP_FUNCOES_DATA || TOP_FUNCOES_DATA.length === 0) return;
+            let texto = `TOP ACIONAMENTOS - LISTA DE PROTOCOLOS\n\n`;
+            TOP_FUNCOES_DATA.forEach(top => {
+                texto += `----------------------------------------\n`;
+                texto += `${top.pos}º LUGAR: ${top.nome} (${top.quantidade} casos - ${top.percentual}%)\n`;
+                texto += `----------------------------------------\n`;
+                const lista = top.protocolos || [];
+                if (lista.length === 0) {
+                    texto += `(Nenhum protocolo registrado)\n`;
+                } else {
+                    lista.forEach(p => {
+                        texto += `${p.protocolo}${p.chamado ? ` | Chamado: ${p.chamado}` : ''}${p.responsavel ? ` | Atendente: ${p.responsavel}` : ''}\n`;
+                    });
+                }
+                texto += `\n`;
+            });
+            navigator.clipboard.writeText(texto).then(() => {
+                alert('✓ Todos os protocolos do Top 3 foram copiados formatados!');
+            });
+        }
+
+        function baixarTxtGeralTop3() {
+            if (!TOP_FUNCOES_DATA || TOP_FUNCOES_DATA.length === 0) return;
+            let conteudo = `========================================================================\n`;
+            conteudo += `MKTZAP - PROTOCOLOS GERAIS DOS TOP ACIONAMENTOS\n`;
+            conteudo += `========================================================================\n\n`;
+            TOP_FUNCOES_DATA.forEach(top => {
+                conteudo += `------------------------------------------------------------------------\n`;
+                conteudo += `${top.pos}º LUGAR: ${top.nome} (${top.quantidade} casos - ${top.percentual}%)\n`;
+                conteudo += `------------------------------------------------------------------------\n`;
+                const lista = top.protocolos || [];
+                if (lista.length === 0) {
+                    conteudo += `Nenhum protocolo registrado.\n\n`;
+                } else {
+                    conteudo += `Nº\tPROTOCOLO\tCHAMADO\tATENDENTE\tSETOR\n`;
+                    lista.forEach((p, idx) => {
+                        conteudo += `${idx+1}\t${p.protocolo}\t${p.chamado||'-'}\t${p.responsavel||'-'}\t${p.setor||'-'}\n`;
+                    });
+                    conteudo += `\nTotal: ${lista.length} registros\n\n`;
+                }
+            });
+            const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = `Top_Acionamentos_Protocolos_Geral.txt`;
+            a.click();
+        }
+    </script>
+</body>
+</html>

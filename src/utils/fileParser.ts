@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import { ProcessedReport, SectorMetric, TopAcionamento } from '../types';
+import { ProcessedReport, SectorMetric, TopAcionamento, ProtocoloItem } from '../types';
 
 export const DEFAULT_GV_PESSOAS = [
   'RAFAELLA CRISTINY JACINTO CAMILO',
@@ -265,9 +265,6 @@ export function processExtractedRows(
     }
   }
 
-  // Count by sectors
-  // Sectors to track:
-  // Whats GN, Whats GV, Whats GV Antecipada, Whats Franquia, Whats CB Commerce
   const setorCounts: Record<string, { finalizados: number; chamados: number }> = {
     gn: { finalizados: 0, chamados: 0 },
     gv: { finalizados: 0, chamados: 0 },
@@ -276,9 +273,10 @@ export function processExtractedRows(
     cb_commerce: { finalizados: 0, chamados: 0 },
   };
 
-  const acionamentosCountMap = new Map<string, number>();
+  const acionamentosMap = new Map<string, { quantidade: number; protocolos: ProtocoloItem[] }>();
 
-  for (const row of finalizadosRows) {
+  for (let rowIdx = 0; rowIdx < finalizadosRows.length; rowIdx++) {
+    const row = finalizadosRows[rowIdx];
     const setorFimRaw = String(
       findColumnValue(row, ['Setor Fim', 'Setor', 'Fila', 'Setor Fim:']) || ''
     ).trim();
@@ -324,11 +322,23 @@ export function processExtractedRows(
     }
 
     // Top acionamentos: calculated from the filtered sectors dataset as in original app.py:
-    // df_filtrado = df_finalizados[df_finalizados["Setor Fim"].isin(setores)]
-    // serie = df_filtrado["Função do Sistema"].value_counts()
     if (categorizedSetor) {
       const funcaoClean = funcaoSistemaRaw || 'NÃO ESPECIFICADO';
-      acionamentosCountMap.set(funcaoClean, (acionamentosCountMap.get(funcaoClean) || 0) + 1);
+      const protoVal = String(
+        findColumnValue(row, ['Protocolo', 'Nº Protocolo', 'Protocolo:', 'Atendimento', 'Nº Atendimento', 'Conversa', 'ID', 'CHAMADO', 'Chamado']) || ''
+      ).trim();
+      const protoItem: ProtocoloItem = {
+        protocolo: protoVal || `Atendimento #${rowIdx + 1}`,
+        chamado: chamadoVal ? String(chamadoVal).trim() : '',
+        responsavel: responsavelRaw || 'Não informado',
+        setor: setorFimRaw || categorizedSetor,
+        tempoOperacao: String(findColumnValue(row, ['Tempo de Operação', 'Tempo de Operacao', 'Status']) || '').trim(),
+      };
+
+      const entry = acionamentosMap.get(funcaoClean) || { quantidade: 0, protocolos: [] };
+      entry.quantidade++;
+      entry.protocolos.push(protoItem);
+      acionamentosMap.set(funcaoClean, entry);
     }
   }
 
@@ -410,8 +420,8 @@ export function processExtractedRows(
   };
 
   // Sort top acionamentos
-  const sortedAcionamentos = Array.from(acionamentosCountMap.entries())
-    .map(([nome, quantidade]) => ({ nome, quantidade }))
+  const sortedAcionamentos = Array.from(acionamentosMap.entries())
+    .map(([nome, data]) => ({ nome, quantidade: data.quantidade, protocolos: data.protocolos }))
     .sort((a, b) => b.quantidade - a.quantidade);
 
   const totalAcionamentosCount = sortedAcionamentos.reduce((acc, curr) => acc + curr.quantidade, 0);
@@ -425,6 +435,7 @@ export function processExtractedRows(
     nome: item.nome,
     quantidade: item.quantidade,
     percentual: totalAcionamentosCount > 0 ? (item.quantidade / totalAcionamentosCount) * 100 : 0,
+    protocolos: item.protocolos,
   }));
 
   return {
@@ -509,24 +520,40 @@ export function getDemoReport(): ProcessedReport {
     },
   };
 
+  const demoPessoas = ['MARCIO MIRANDA', 'VANESSA DUARTE', 'RAFAELLA CRISTINY', 'WILLIANE BORGES'];
+  const demoSetores = ['Whats GN', 'Whats GV', 'Whats GV Antecipada'];
+
+  const gerarDemoProtocolos = (qtd: number, prefix: string) => {
+    return Array.from({ length: qtd }, (_, i) => ({
+      protocolo: `20261029${prefix}${String(i + 1).padStart(3, '0')}`,
+      chamado: i % 2 === 0 ? `TKT-88${prefix}${i + 1}` : '',
+      responsavel: demoPessoas[i % demoPessoas.length],
+      setor: demoSetores[i % demoSetores.length],
+      tempoOperacao: `${(i % 5) + 3}m ${(i * 7) % 60}s`,
+    }));
+  };
+
   const topAcionamentos: TopAcionamento[] = [
     {
       rank: 1,
       nome: 'ACESSO',
       quantidade: 52,
       percentual: (52 / 61) * 100,
+      protocolos: gerarDemoProtocolos(52, '10'),
     },
     {
       rank: 2,
       nome: 'CAPTAÇÃO - PAG EMANA PAY',
       quantidade: 5,
       percentual: (5 / 61) * 100,
+      protocolos: gerarDemoProtocolos(5, '20'),
     },
     {
       rank: 3,
       nome: 'PAINEL DE INDICADORES - SALDO DE CADASTRO',
       quantidade: 4,
       percentual: (4 / 61) * 100,
+      protocolos: gerarDemoProtocolos(4, '30'),
     },
   ];
 

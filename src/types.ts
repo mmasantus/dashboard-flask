@@ -11,11 +11,20 @@ export interface SectorMetric {
   textColor: string;
 }
 
+export interface ProtocoloItem {
+  protocolo: string;
+  chamado?: string;
+  responsavel?: string;
+  setor?: string;
+  tempoOperacao?: string;
+}
+
 export interface TopAcionamento {
   rank: number;
   nome: string;
   quantidade: number;
   percentual: number;
+  protocolos: ProtocoloItem[];
 }
 
 export interface ProcessedReport {

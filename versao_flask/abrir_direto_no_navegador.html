@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passagem de Turno MKTZAP (Modo Offline / Sem Servidor)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Bibliotecas para funcionamento 100% no navegador sem Python -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/docx@8.5.0/build/index.umd.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+            background-color: #090d14;
+            color: #f1f5f9;
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+        .font-mono { font-family: 'JetBrains Mono', monospace; font-variant-numeric: tabular-nums; }
+        .app-container { max-width: 1200px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; min-height: 100vh; }
+        .app-header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 24px; border-bottom: 1px solid #1e293b; margin-bottom: 32px; }
+        .header-brand { display: flex; align-items: center; gap: 14px; }
+        .brand-avatar { width: 44px; height: 44px; border-radius: 12px; background: #059669; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+        .header-brand h1 { font-size: 1.25rem; font-weight: 700; color: #fff; }
+        .header-brand p { font-size: 0.8rem; color: #94a3b8; }
+        .badge-mode { background: #064e3b; color: #6ee7b7; border: 1px solid #059669; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; }
+        .upload-section { margin: 30px auto; max-width: 650px; width: 100%; }
+        .upload-dropzone { border: 2px dashed #334155; background: rgba(30, 41, 59, 0.4); border-radius: 20px; padding: 48px 24px; text-align: center; cursor: pointer; transition: 0.2s; }
+        .upload-dropzone:hover { border-color: #10b981; background: rgba(16, 185, 129, 0.05); }
+        .upload-icon { font-size: 3rem; margin-bottom: 16px; }
+        .upload-dropzone h2 { font-size: 1.25rem; font-weight: 700; color: #fff; margin-bottom: 8px; }
+        .upload-dropzone p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px; }
+        .format-badges { display: flex; justify-content: center; gap: 8px; margin-bottom: 24px; }
+        .badge { font-size: 0.72rem; font-family: 'JetBrains Mono', monospace; background: #0f172a; border: 1px solid #334155; padding: 4px 10px; border-radius: 6px; color: #38bdf8; }
+        .btn-select { display: inline-block; background: #10b981; color: #064e3b; padding: 12px 26px; border-radius: 12px; font-size: 0.85rem; font-weight: 700; cursor: pointer; }
+        .status-bar { display: flex; align-items: center; justify-content: space-between; padding: 14px 20px; background: rgba(30, 41, 59, 0.6); border: 1px solid #1e293b; border-radius: 16px; margin-bottom: 24px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .kpi-card { background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 16px; padding: 20px; }
+        .kpi-label { font-size: 0.75rem; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; display: block; }
+        .kpi-value { font-size: 1.8rem; font-weight: 800; color: #fff; }
+        .text-blue { color: #60a5fa !important; }
+        .text-amber { color: #fbbf24 !important; }
+        .text-purple { color: #c084fc !important; }
+        .section-card { background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-radius: 20px; padding: 24px; margin-bottom: 24px; }
+        .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .section-header h3 { font-size: 1rem; font-weight: 700; color: #fff; }
+        .analytics-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; text-align: left; }
+        .analytics-table th { padding: 12px 14px; border-bottom: 1px solid #334155; color: #94a3b8; font-weight: 600; }
+        .analytics-table td { padding: 14px; border-bottom: 1px solid rgba(51, 65, 85, 0.4); color: #e2e8f0; }
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .dual-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        @media (max-width: 900px) { .dual-grid { grid-template-columns: 1fr; } }
+        .top-item { background: #090d14; border: 1px solid #1e293b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .top-item-header { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 0.85rem; }
+        .rank-bar { width: 100%; height: 6px; background: #1e293b; border-radius: 4px; overflow: hidden; }
+        .rank-fill { height: 100%; background: #10b981; }
+        .word-preview-box { background: #05080e; border: 1px solid #1e293b; border-radius: 12px; padding: 16px; max-height: 280px; overflow-y: auto; margin-bottom: 20px; }
+        .word-preview-box pre { color: #e2e8f0; font-size: 0.75rem; line-height: 1.6; white-space: pre-wrap; }
+        .download-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .btn-action { padding: 12px 18px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; cursor: pointer; border: none; }
+        .btn-copy { background: #1e293b; color: #fff; border: 1px solid #334155; flex: 1; }
+        .btn-download { background: #10b981; color: #064e3b; flex: 1.2; box-shadow: 0 4px 14px rgba(16,185,129,0.3); }
+        .hidden { display: none !important; }
+        .alert-error { background: rgba(225, 29, 72, 0.15); border: 1px solid #e11d48; color: #fecdd3; padding: 14px; border-radius: 12px; margin-bottom: 20px; font-size: 0.85rem; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="brand-avatar">📱</div>
+            <div>
+                <h1>Passagem de Turno MKTZAP</h1>
+                <p>Consolidação de canais Whats GN, GV, Franquia & CB Commerce</p>
+            </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+            <button onclick="abrirModalEquipe()" style="background: rgba(30,41,59,0.8); border: 1px solid #334155; color: #93c5fd; padding: 6px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                👥 Equipe Experiência Brasil
+            </button>
+            <span class="badge-mode">✓ Modo Executável Direto</span>
+        </div>
+    </header>
+
+    <!-- MODAL EQUIPE EXPERIÊNCIA BRASIL -->
+    <div id="modalEquipe" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; max-width: 480px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 1.1rem; color: #fff; font-weight: 700;">👥 Equipe Experiência Brasil</h3>
+                <button onclick="fecharModalEquipe()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 14px;">
+                Responsáveis pelo atendimento da fila Whats GV Antecipada. Ao adicionar ou remover integrantes, a planilha aberta é <strong>recalculada na hora</strong>!
+            </p>
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="novoIntegrante" placeholder="Nome do atendente (ex: JOÃO SILVA)..." style="flex: 1; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8rem; text-transform: uppercase;">
+                <button onclick="adicionarIntegrante()" style="background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Adicionar</button>
+            </div>
+            <div id="listaIntegrantes" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 14px;">
+                <button onclick="restaurarPadraoEquipe()" style="background: transparent; border: none; color: #64748b; font-size: 0.75rem; cursor: pointer;">Restaurar Padrão</button>
+                <button onclick="fecharModalEquipe()" style="background: #10b981; color: #064e3b; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">Pronto</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="formatErrorAlert" class="alert-error hidden"></div>
+
+    <!-- TELA DE UPLOAD -->
+    <div id="uploadSection" class="upload-section">
+        <div class="upload-dropzone" id="dropzoneBox" onclick="document.getElementById('fileInputDirect').click()">
+            <div class="upload-icon">📁</div>
+            <h2>Selecione ou Arraste o relatório do MKTZAP</h2>
+            <p>Funciona diretamente com arquivos .html, .xls, .xlsx ou .csv</p>
+            <div class="format-badges">
+                <span class="badge">.html / .htm</span>
+                <span class="badge">.xlsx / .xls</span>
+                <span class="badge">.csv</span>
+            </div>
+            <span class="btn-select">Escolher Arquivo no Computador</span>
+            <input type="file" id="fileInputDirect" accept=".xls,.xlsx,.html,.htm,.csv,.tsv" style="display: none;">
+        </div>
+    </div>
+
+    <!-- TELA DE RESULTADOS -->
+    <div id="resultsSection" class="hidden">
+        <div class="status-bar">
+            <div>
+                <strong id="activeFileName">relatorio.xlsx</strong>
+                <span id="activeFileRows" style="font-size: 0.8rem; color: #94a3b8; margin-left: 10px;"></span>
+            </div>
+            <button onclick="limpar()" style="background: #1e293b; color: #fff; border: 1px solid #334155; padding: 6px 14px; border-radius: 8px; cursor: pointer;">
+                🔄 Trocar / Limpar
+            </button>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Total Finalizados</span>
+                <div class="kpi-value font-mono" id="kpiFinalizados">0</div>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Total Chamados</span>
+                <div class="kpi-value font-mono text-blue" id="kpiChamados">0</div>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Taxa de Chamados</span>
+                <div class="kpi-value font-mono text-amber" id="kpiTaxa">0%</div>
+            </div>
+            <div class="kpi-card">
+                <span class="kpi-label">Canal Líder</span>
+                <div class="kpi-value truncate text-purple" id="kpiLider">-</div>
+            </div>
+        </div>
+
+        <div class="section-card">
+            <div class="section-header">
+                <h3>📊 Consolidação por Canal de Atendimento</h3>
+            </div>
+            <div style="overflow-x: auto;">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Canal / Fila</th>
+                            <th class="text-right">Finalizados</th>
+                            <th class="text-right">Chamados</th>
+                            <th class="text-center">Pendências</th>
+                            <th class="text-right">Carga %</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="dual-grid">
+            <div class="section-card">
+                <div class="section-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div>
+                        <h3>🏆 Top Acionamentos</h3>
+                        <p style="font-size:0.75rem; color:#94a3b8; margin:0;">Clique para ver e copiar os protocolos</p>
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" onclick="copiarTodosTop3Offline()" style="background:#1e293b; border:1px solid #334155; color:#e2e8f0; font-size:0.72rem; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600;" title="Copiar todos os protocolos do Top 3">
+                            📋 Copiar Top 3
+                        </button>
+                        <button type="button" onclick="baixarTxtGeralTop3Offline()" style="background:#064e3b; border:1px solid #059669; color:#6ee7b7; font-size:0.72rem; padding:4px 10px; border-radius:6px; cursor:pointer; font-weight:600;" title="Baixar relatório TXT">
+                            💾 Baixar TXT
+                        </button>
+                    </div>
+                </div>
+                <div id="topAcionamentosList"></div>
+            </div>
+
+            <div class="section-card">
+                <div class="section-header">
+                    <h3>📋 Ata de Passagem de Turno</h3>
+                </div>
+                <div class="word-preview-box">
+                    <pre id="preFormattedText" class="font-mono"></pre>
+                </div>
+                <div class="download-actions">
+                    <button class="btn-action btn-copy" onclick="copiarTexto()">📋 Copiar para WhatsApp</button>
+                    <button class="btn-action btn-download" onclick="baixarWordDocx()">📥 Baixar Arquivo Word (.docx)</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const DEFAULT_PESSOAS = [
+        "RAFAELLA CRISTINY JACINTO CAMILO",
+        "VANESSA DUARTE",
+        "MARCIO MIRANDA ALVES DOS SANTOS",
+        "WILLIANE BORGES",
+        "LUIS GUILHERME TEODORO DOS SANTOS",
+        "ADRIANA CONCEICAO DE OLIVEIRA",
+        "DANIELA COELHO"
+    ];
+
+    let GV_PESSOAS = (() => {
+        try {
+            const saved = localStorage.getItem('mktzap_equipe_experiencia_brasil');
+            if (saved) return JSON.parse(saved);
+        } catch(e) {}
+        return [...DEFAULT_PESSOAS];
+    })();
+
+    let currentReport = null;
+    let activeRows = null;
+
+    function abrirModalEquipe() {
+        renderListaIntegrantes();
+        document.getElementById('modalEquipe').classList.remove('hidden');
+    }
+
+    function fecharModalEquipe() {
+        document.getElementById('modalEquipe').classList.add('hidden');
+    }
+
+    function renderListaIntegrantes() {
+        const div = document.getElementById('listaIntegrantes');
+        div.innerHTML = '';
+        GV_PESSOAS.forEach((nome, idx) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#1e293b;padding:8px 12px;border-radius:8px;font-size:0.75rem;color:#f1f5f9;';
+            item.innerHTML = `
+                <span style="font-weight:600;">${nome}</span>
+                <button onclick="removerIntegrante(${idx})" style="background:transparent;border:none;color:#f43f5e;font-size:0.9rem;cursor:pointer;" title="Remover">✕</button>
+            `;
+            div.appendChild(item);
+        });
+    }
+
+    function salvarEquipeERecalcular() {
+        localStorage.setItem('mktzap_equipe_experiencia_brasil', JSON.stringify(GV_PESSOAS));
+        renderListaIntegrantes();
+        if (activeRows && currentReport) {
+            calcularMetricas(activeRows, currentReport.filename);
+        }
+    }
+
+    function adicionarIntegrante() {
+        const inp = document.getElementById('novoIntegrante');
+        const val = inp.value.trim().toUpperCase();
+        if (val && !GV_PESSOAS.includes(val)) {
+            GV_PESSOAS.push(val);
+            inp.value = '';
+            salvarEquipeERecalcular();
+        }
+    }
+
+    function removerIntegrante(idx) {
+        GV_PESSOAS.splice(idx, 1);
+        salvarEquipeERecalcular();
+    }
+
+    function restaurarPadraoEquipe() {
+        GV_PESSOAS = [...DEFAULT_PESSOAS];
+        salvarEquipeERecalcular();
+    }
+
+    document.getElementById('fileInputDirect').addEventListener('change', function(e) {
+        if (e.target.files && e.target.files[0]) {
+            processarArquivo(e.target.files[0]);
+        }
+    });
+
+    const dropzone = document.getElementById('dropzoneBox');
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); });
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            processarArquivo(e.dataTransfer.files[0]);
+        }
+    });
+
+    function normalizeText(txt) {
+        return (txt || '').toString().trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    }
+
+    function formatNumber(num) {
+        return num < 10 && num >= 0 ? `0${num}` : `${num}`;
+    }
+
+    async function processarArquivo(file) {
+        const errorAlert = document.getElementById('formatErrorAlert');
+        errorAlert.classList.add('hidden');
+
+        const ext = file.name.split('.').pop().toLowerCase();
+        const validas = ['xls', 'xlsx', 'html', 'htm', 'csv', 'tsv'];
+        if (!validas.includes(ext)) {
+            errorAlert.textContent = `O formato .${ext} não é suportado. Use arquivos nos formatos .html, .xls, .xlsx ou .csv.`;
+            errorAlert.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            const buffer = await file.arrayBuffer();
+            let rows = [];
+
+            // Se for html ou começar com tag html
+            const sample = new TextDecoder('utf-8').decode(buffer.slice(0, 500));
+            if (ext === 'html' || ext === 'htm' || sample.includes('<table') || sample.includes('<html')) {
+                const fullText = new TextDecoder('utf-8').decode(buffer);
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(fullText, 'text/html');
+                const table = doc.querySelector('table');
+                if (table) {
+                    const trs = Array.from(table.querySelectorAll('tr'));
+                    let headerIdx = 1;
+                    for (let i = 0; i < Math.min(trs.length, 4); i++) {
+                        const txt = trs[i].innerText.toUpperCase();
+                        if (txt.includes('SETOR FIM') || txt.includes('TEMPO DE OPERA')) {
+                            headerIdx = i;
+                            break;
+                        }
+                    }
+                    const headers = Array.from(trs[headerIdx].querySelectorAll('th, td')).map(c => c.innerText.trim());
+                    for (let i = headerIdx + 1; i < trs.length; i++) {
+                        const cells = Array.from(trs[i].querySelectorAll('td, th')).map(c => c.innerText.trim());
+                        if (cells.length === 0 || cells.every(c => c === '')) continue;
+                        const row = {};
+                        headers.forEach((h, idx) => { row[h || `c${idx}`] = cells[idx] || ''; });
+                        rows.push(row);
+                    }
+                }
+            }
+
+            if (rows.length === 0) {
+                // Tenta com SheetJS
+                const wb = XLSX.read(buffer, { type: 'array' });
+                const ws = wb.Sheets[wb.SheetNames[0]];
+                const raw = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+                let headerIdx = 1;
+                for (let i = 0; i < Math.min(raw.length, 5); i++) {
+                    const str = (raw[i] || []).join(' ').toUpperCase();
+                    if (str.includes('SETOR FIM') || str.includes('TEMPO DE OPERA')) {
+                        headerIdx = i;
+                        break;
+                    }
+                }
+                const headers = (raw[headerIdx] || []).map(c => String(c).trim());
+                for (let i = headerIdx + 1; i < raw.length; i++) {
+                    const r = raw[i];
+                    if (!r || r.length === 0) continue;
+                    const row = {};
+                    headers.forEach((h, idx) => { row[h || `c${idx}`] = r[idx] || ''; });
+                    rows.push(row);
+                }
+            }
+
+            activeRows = rows;
+            calcularMetricas(rows, file.name);
+        } catch (err) {
+            errorAlert.textContent = 'Erro ao processar planilha: ' + err.message;
+            errorAlert.classList.remove('hidden');
+        }
+    }
+
+    function getVal(row, names) {
+        const keys = Object.keys(row);
+        for (const name of names) {
+            const norm = normalizeText(name);
+            const found = keys.find(k => normalizeText(k) === norm || normalizeText(k).includes(norm));
+            if (found) return row[found];
+        }
+        return '';
+    }
+
+    function isChamado(val) {
+        if (!val) return false;
+        const s = normalizeText(val);
+        return s !== '' && s !== '0' && s !== '-' && s !== 'NAN' && s !== 'NULL' && s !== 'NAO' && s !== 'NAO';
+    }
+
+    function calcularMetricas(rows, filename) {
+        const setores = {
+            gn: { name: 'Whats GN', total: 0, chamados: 0 },
+            gv: { name: 'Whats GV', total: 0, chamados: 0 },
+            gva: { name: 'Whats GV Antecipada', total: 0, chamados: 0 },
+            fra: { name: 'Whats Franquia', total: 0, chamados: 0 },
+            cb: { name: 'Whats CB Commerce', total: 0, chamados: 0 },
+        };
+
+        const acionamentosMap = {};
+        const normGvPessoas = GV_PESSOAS.map(p => normalizeText(p));
+
+        rows.forEach(row => {
+            const tempo = normalizeText(getVal(row, ['Tempo de Operação', 'Tempo de Operacao', 'Status']));
+            if (tempo.includes('NAO FINALIZADO') || tempo === 'CANCELADO') return;
+
+            const setor = normalizeText(getVal(row, ['Setor Fim', 'Setor']));
+            const resp = normalizeText(getVal(row, ['Responsável', 'Responsavel']));
+            const chamadoRaw = getVal(row, ['CHAMADO', 'Chamado']);
+            const chamado = isChamado(chamadoRaw);
+            const funcao = getVal(row, ['Função do Sistema', 'Funcao do Sistema', 'Motivo']) || 'NÃO ESPECIFICADO';
+            let proto = getVal(row, ['Protocolo', 'Protocolo Atendimento', 'Nº Protocolo', 'Atendimento', 'Conversa', 'ID']);
+            if (!proto || proto === '-' || String(proto).toUpperCase() === 'NAN') {
+                proto = chamadoRaw && chamado ? `CH-${chamadoRaw}` : `CASO-${String(acionamentosMap[funcao]?.qtd || 0 + 1).padStart(3, '0')}`;
+            }
+
+            let cat = null;
+            if (setor.includes('ANTECIPADA') && normGvPessoas.some(p => resp.includes(p) || p.includes(resp))) {
+                cat = 'gva';
+            } else if (setor.includes('WHATS GN')) {
+                cat = 'gn';
+            } else if (setor.includes('WHATS GV') || (setor.includes('GV') && !setor.includes('ANTECIPADA'))) {
+                cat = 'gv';
+            } else if (setor.includes('FRANQUIA')) {
+                cat = 'fra';
+            } else if (setor.includes('COMMERCE')) {
+                cat = 'cb';
+            }
+
+            if (cat) {
+                setores[cat].total++;
+                if (chamado) setores[cat].chamados++;
+                if (!acionamentosMap[funcao]) {
+                    acionamentosMap[funcao] = { qtd: 0, protocolos: [] };
+                }
+                acionamentosMap[funcao].qtd++;
+                acionamentosMap[funcao].protocolos.push({
+                    protocolo: String(proto).trim(),
+                    chamado: chamado ? String(chamadoRaw).trim() : '',
+                    responsavel: getVal(row, ['Responsável', 'Responsavel']),
+                    setor: getVal(row, ['Setor Fim', 'Setor'])
+                });
+            }
+        });
+
+        const totalFin = Object.values(setores).reduce((a, b) => a + b.total, 0);
+        const totalCha = Object.values(setores).reduce((a, b) => a + b.chamados, 0);
+        const taxa = totalFin > 0 ? (totalCha / totalFin * 100).toFixed(1) : '0.0';
+
+        const sortedAcion = Object.entries(acionamentosMap)
+            .map(([nome, data]) => ({ nome, qtd: data.qtd, protocolos: data.protocolos }))
+            .sort((a, b) => b.qtd - a.qtd);
+
+        const top3 = sortedAcion.slice(0, 3);
+        const lider = Object.values(setores).reduce((max, s) => s.total > max.total ? s : max, setores.gn);
+
+        currentReport = {
+            filename,
+            totalFin,
+            totalCha,
+            taxa,
+            lider: lider.name,
+            setores,
+            top3,
+            dataDoc: new Date().toLocaleDateString('pt-BR'),
+            periodo: (new Date().getHours() >= 18 ? '08h às 00h' : '08h às 16h')
+        };
+
+        renderResultados();
+    }
+
+    function renderResultados() {
+        document.getElementById('uploadSection').classList.add('hidden');
+        document.getElementById('resultsSection').classList.remove('hidden');
+
+        document.getElementById('activeFileName').textContent = currentReport.filename;
+        document.getElementById('kpiFinalizados').textContent = currentReport.totalFin;
+        document.getElementById('kpiChamados').textContent = currentReport.totalCha;
+        document.getElementById('kpiTaxa').textContent = currentReport.taxa + '%';
+        document.getElementById('kpiLider').textContent = currentReport.lider;
+
+        // Tabela
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        const order = ['gn', 'gv', 'gva', 'fra', 'cb'];
+        order.forEach(k => {
+            const s = currentReport.setores[k];
+            const pct = currentReport.totalFin > 0 ? (s.total / currentReport.totalFin * 100).toFixed(1) : '0.0';
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td><strong>${s.name}</strong></td>
+                <td class="text-right font-mono font-bold">${s.total}</td>
+                <td class="text-right font-mono">${s.chamados}</td>
+                <td class="text-center font-mono text-amber">00</td>
+                <td class="text-right font-mono font-bold">${pct}%</td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+        // Top acionamentos
+        const topList = document.getElementById('topAcionamentosList');
+        topList.innerHTML = '';
+        currentReport.top3.forEach((item, idx) => {
+            const pct = currentReport.totalFin > 0 ? (item.qtd / currentReport.totalFin * 100).toFixed(1) : 0;
+            const div = document.createElement('div');
+            div.className = 'top-item';
+            div.style.cursor = 'pointer';
+            div.title = 'Clique para ver os protocolos deste motivo';
+            div.onclick = () => abrirModalProtocolosOffline(idx + 1);
+            div.innerHTML = `
+                <div class="top-item-header" style="align-items:center;">
+                    <span><strong>${idx + 1}º ${item.nome}</strong></span>
+                    <div style="display:flex; align-items:center; gap:6px;">
+                        <span class="font-mono">${item.qtd} (${pct}%)</span>
+                        <span style="font-size:0.7rem; background:rgba(16,185,129,0.2); color:#6ee7b7; border:1px solid #059669; padding:2px 6px; border-radius:4px;">🔍 Ver</span>
+                    </div>
+                </div>
+                <div class="rank-bar"><div class="rank-fill" style="width: ${pct}%;"></div></div>
+            `;
+            topList.appendChild(div);
+        });
+
+        // Ata
+        const txt = gerarTextoAta();
+        document.getElementById('preFormattedText').textContent = txt;
+    }
+
+    function gerarTextoAta() {
+        const s = currentReport.setores;
+        const top1 = currentReport.top3[0] ? `1º ${currentReport.top3[0].nome}: ${currentReport.top3[0].qtd}` : '1º -: 00';
+        const top2 = currentReport.top3[1] ? `2º ${currentReport.top3[1].nome}: ${currentReport.top3[1].qtd}` : '2º -: 00';
+        const top3 = currentReport.top3[2] ? `3º ${currentReport.top3[2].nome}: ${currentReport.top3[2].qtd}` : '3º -: 00';
+
+        return `📋 Passagem de Turno MKTZAP
+🕗 ${currentReport.periodo} | 📅${currentReport.dataDoc}
+
+━━━━━━━━━━━━━━
+📲 Whats GN
+✅ Finalizados: ${formatNumber(s.gn.total)}
+⚙️ Chamados: ${formatNumber(s.gn.chamados)}
+⚠️ Pendências: 00
+
+
+📲 Whats GV
+✅ Finalizados: ${formatNumber(s.gv.total)}
+⚙️ Chamados: ${formatNumber(s.gv.chamados)}
+⚠️ Pendências: 00
+
+
+📲 Whats GV Antecipada 
+✅ Finalizados: ${formatNumber(s.gva.total)}
+⚙️ Chamados: ${formatNumber(s.gva.chamados)}
+⚠️ Pendências: 00
+
+
+📲 Whats Franquia
+✅ Finalizados: ${formatNumber(s.fra.total)}
+⚙️ Chamados: ${formatNumber(s.fra.chamados)}
+⚠️ Pendências: 00
+
+📲 Whats CB Commerce
+✅ Finalizados: ${formatNumber(s.cb.total)}
+⚙️ Chamados: ${formatNumber(s.cb.chamados)}
+⚠️ Pendências: 00
+
+🏆 Top Acionamentos
+
+
+${top1}
+${top2}
+${top3}`;
+    }
+
+    function copiarTexto() {
+        const txt = gerarTextoAta();
+        navigator.clipboard.writeText(txt).then(() => {
+            alert('✓ Modelo copiado para o WhatsApp!');
+        });
+    }
+
+    async function baixarWordDocx() {
+        const s = currentReport.setores;
+        const top1 = currentReport.top3[0] ? `1º ${currentReport.top3[0].nome}: ${currentReport.top3[0].qtd}` : '1º -: 00';
+        const top2 = currentReport.top3[1] ? `2º ${currentReport.top3[1].nome}: ${currentReport.top3[1].qtd}` : '2º -: 00';
+        const top3 = currentReport.top3[2] ? `3º ${currentReport.top3[2].nome}: ${currentReport.top3[2].qtd}` : '3º -: 00';
+
+        const { Document, Packer, Paragraph, TextRun, HeadingLevel } = docx;
+
+        const doc = new Document({
+            sections: [{
+                children: [
+                    new Paragraph({ text: '📋 Passagem de Turno MKTZAP', heading: HeadingLevel.HEADING_1 }),
+                    new Paragraph({ text: `🕗 ${currentReport.periodo} | 📅${currentReport.dataDoc}` }),
+                    new Paragraph({ text: '━━━━━━━━━━━━━━' }),
+
+                    new Paragraph({ children: [new TextRun({ text: '📲 Whats GN', bold: true })] }),
+                    new Paragraph({ text: `✅ Finalizados: ${formatNumber(s.gn.total)}` }),
+                    new Paragraph({ text: `⚙️ Chamados: ${formatNumber(s.gn.chamados)}` }),
+                    new Paragraph({ text: `⚠️ Pendências: 00\n` }),
+
+                    new Paragraph({ children: [new TextRun({ text: '📲 Whats GV', bold: true })] }),
+                    new Paragraph({ text: `✅ Finalizados: ${formatNumber(s.gv.total)}` }),
+                    new Paragraph({ text: `⚙️ Chamados: ${formatNumber(s.gv.chamados)}` }),
+                    new Paragraph({ text: `⚠️ Pendências: 00\n` }),
+
+                    new Paragraph({ children: [new TextRun({ text: '📲 Whats GV Antecipada', bold: true })] }),
+                    new Paragraph({ text: `✅ Finalizados: ${formatNumber(s.gva.total)}` }),
+                    new Paragraph({ text: `⚙️ Chamados: ${formatNumber(s.gva.chamados)}` }),
+                    new Paragraph({ text: `⚠️ Pendências: 00\n` }),
+
+                    new Paragraph({ children: [new TextRun({ text: '📲 Whats Franquia', bold: true })] }),
+                    new Paragraph({ text: `✅ Finalizados: ${formatNumber(s.fra.total)}` }),
+                    new Paragraph({ text: `⚙️ Chamados: ${formatNumber(s.fra.chamados)}` }),
+                    new Paragraph({ text: `⚠️ Pendências: 00\n` }),
+
+                    new Paragraph({ children: [new TextRun({ text: '📲 Whats CB Commerce', bold: true })] }),
+                    new Paragraph({ text: `✅ Finalizados: ${formatNumber(s.cb.total)}` }),
+                    new Paragraph({ text: `⚙️ Chamados: ${formatNumber(s.cb.chamados)}` }),
+                    new Paragraph({ text: `⚠️ Pendências: 00\n` }),
+
+                    new Paragraph({ children: [new TextRun({ text: '🏆 Top Acionamentos\n', bold: true })] }),
+                    new Paragraph({ text: top1 }),
+                    new Paragraph({ text: top2 }),
+                    new Paragraph({ text: top3 }),
+                ]
+            }]
+        });
+
+        const blob = await Packer.toBlob(doc);
+        saveAs(blob, `Passagem_de_Turno_MKTZAP_${currentReport.dataDoc.replace(/\\//g, '-')}.docx`);
+    }
+
+    function limpar() {
+        currentReport = null;
+        document.getElementById('resultsSection').classList.add('hidden');
+        document.getElementById('uploadSection').classList.remove('hidden');
+        document.getElementById('fileInputDirect').value = '';
+    }
+
+    /* MODAL DE PROTOCOLOS (OFFLINE) */
+    let acionamentoAtivoOffline = null;
+
+    function abrirModalProtocolosOffline(pos) {
+        if (!currentReport || !currentReport.top3) return;
+        const item = currentReport.top3[pos - 1];
+        if (!item) return;
+        acionamentoAtivoOffline = { ...item, pos };
+
+        document.getElementById('modalProtoBadgeOffline').textContent = `${pos}º Lugar`;
+        document.getElementById('modalProtoTituloOffline').textContent = item.nome;
+        const pct = currentReport.totalFin > 0 ? (item.qtd / currentReport.totalFin * 100).toFixed(1) : 0;
+        document.getElementById('modalProtoSubtituloOffline').textContent = `${item.qtd} casos registrados (${pct}% do turno)`;
+        document.getElementById('filtroProtocolosOffline').value = '';
+
+        renderListaProtocolosOffline(item.protocolos || []);
+        document.getElementById('modalProtocolosOffline').classList.remove('hidden');
+    }
+
+    function fecharModalProtocolosOffline() {
+        document.getElementById('modalProtocolosOffline').classList.add('hidden');
+    }
+
+    function renderListaProtocolosOffline(lista) {
+        const container = document.getElementById('listaProtocolosContainerOffline');
+        container.innerHTML = '';
+
+        if (!lista || lista.length === 0) {
+            container.innerHTML = '<div style="text-align:center; padding:20px; color:#94a3b8; font-size:0.8rem;">Nenhum protocolo extraído para este motivo.</div>';
+            document.getElementById('modalProtoContadorOffline').textContent = 'Exibindo 0 de 0 protocolos';
+            return;
+        }
+
+        lista.forEach((p, idx) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.style.cssText = 'display:flex; justify-content:space-between; align-items:center; background:#1e293b; padding:10px 14px; border-radius:8px; font-size:0.8rem;';
+            
+            const metaInfo = [];
+            if (p.chamado) metaInfo.push(`Chamado: ${p.chamado}`);
+            if (p.responsavel) metaInfo.push(`Atendente: ${p.responsavel}`);
+            if (p.setor) metaInfo.push(`Setor: ${p.setor}`);
+
+            itemDiv.innerHTML = `
+                <div>
+                    <div style="font-family:'JetBrains Mono', monospace; font-weight:700; color:#38bdf8;">
+                        #${idx + 1} • ${p.protocolo}
+                    </div>
+                    ${metaInfo.length > 0 ? `<div style="font-size:0.72rem; color:#94a3b8; margin-top:2px;">${metaInfo.join(' | ')}</div>` : ''}
+                </div>
+                <button type="button" onclick="copiarTextoProto('${p.protocolo}')" style="background:#0f172a; border:1px solid #334155; color:#cbd5e1; padding:4px 10px; border-radius:6px; font-size:0.72rem; cursor:pointer;" title="Copiar protocolo">
+                    Copiar
+                </button>
+            `;
+            container.appendChild(itemDiv);
+        });
+
+        const total = (acionamentoAtivoOffline && acionamentoAtivoOffline.protocolos) ? acionamentoAtivoOffline.protocolos.length : lista.length;
+        document.getElementById('modalProtoContadorOffline').textContent = `Exibindo ${lista.length} de ${total} protocolos`;
+    }
+
+    function filtrarProtocolosOffline() {
+        if (!acionamentoAtivoOffline || !acionamentoAtivoOffline.protocolos) return;
+        const termo = document.getElementById('filtroProtocolosOffline').value.toLowerCase().trim();
+        if (!termo) {
+            renderListaProtocolosOffline(acionamentoAtivoOffline.protocolos);
+            return;
+        }
+        const filtrados = acionamentoAtivoOffline.protocolos.filter(p => 
+            (p.protocolo && p.protocolo.toLowerCase().includes(termo)) ||
+            (p.chamado && p.chamado.toLowerCase().includes(termo)) ||
+            (p.responsavel && p.responsavel.toLowerCase().includes(termo)) ||
+            (p.setor && p.setor.toLowerCase().includes(termo))
+        );
+        renderListaProtocolosOffline(filtrados);
+    }
+
+    function copiarTextoProto(texto) {
+        navigator.clipboard.writeText(texto).then(() => {
+            alert(`✓ Copiado: ${texto}`);
+        });
+    }
+
+    function copiarTodosDoModalOffline() {
+        if (!acionamentoAtivoOffline || !acionamentoAtivoOffline.protocolos || acionamentoAtivoOffline.protocolos.length === 0) return;
+        const texto = acionamentoAtivoOffline.protocolos.map(p => p.protocolo).join('\n');
+        navigator.clipboard.writeText(texto).then(() => {
+            alert(`✓ Todos os ${acionamentoAtivoOffline.protocolos.length} protocolos de "${acionamentoAtivoOffline.nome}" copiados!`);
+        });
+    }
+
+    function baixarTxtDoModalOffline() {
+        if (!acionamentoAtivoOffline || !acionamentoAtivoOffline.protocolos || acionamentoAtivoOffline.protocolos.length === 0) return;
+        let conteudo = `=========================================================\n`;
+        conteudo += `MKTZAP - PROTOCOLOS: ${acionamentoAtivoOffline.pos}º ${acionamentoAtivoOffline.nome}\n`;
+        conteudo += `Total de Casos: ${acionamentoAtivoOffline.qtd}\n`;
+        conteudo += `=========================================================\n\n`;
+        conteudo += `Nº\tPROTOCOLO\tCHAMADO\tATENDENTE\tSETOR\n`;
+        acionamentoAtivoOffline.protocolos.forEach((p, idx) => {
+            conteudo += `${idx+1}\t${p.protocolo}\t${p.chamado||'-'}\t${p.responsavel||'-'}\t${p.setor||'-'}\n`;
+        });
+        const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, `Protocolos_${acionamentoAtivoOffline.pos}_${acionamentoAtivoOffline.nome.replace(/[^a-zA-Z0-9]/g, '_')}.txt`);
+    }
+
+    function baixarCsvDoModalOffline() {
+        if (!acionamentoAtivoOffline || !acionamentoAtivoOffline.protocolos || acionamentoAtivoOffline.protocolos.length === 0) return;
+        let csv = `Posicao,Protocolo,Chamado,Responsavel,Setor,Motivo\n`;
+        acionamentoAtivoOffline.protocolos.forEach((p, idx) => {
+            csv += `"${idx+1}","${p.protocolo}","${p.chamado||''}","${p.responsavel||''}","${p.setor||''}","${acionamentoAtivoOffline.nome}"\n`;
+        });
+        const blob = new Blob(["\uFEFF" + csv], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, `Protocolos_${acionamentoAtivoOffline.pos}_${acionamentoAtivoOffline.nome.replace(/[^a-zA-Z0-9]/g, '_')}.csv`);
+    }
+
+    function copiarTodosTop3Offline() {
+        if (!currentReport || !currentReport.top3 || currentReport.top3.length === 0) return;
+        let texto = `TOP ACIONAMENTOS - LISTA DE PROTOCOLOS\n\n`;
+        currentReport.top3.forEach((top, idx) => {
+            const pct = currentReport.totalFin > 0 ? (top.qtd / currentReport.totalFin * 100).toFixed(1) : 0;
+            texto += `----------------------------------------\n`;
+            texto += `${idx + 1}º LUGAR: ${top.nome} (${top.qtd} casos - ${pct}%)\n`;
+            texto += `----------------------------------------\n`;
+            const lista = top.protocolos || [];
+            if (lista.length === 0) {
+                texto += `(Nenhum protocolo registrado)\n`;
+            } else {
+                lista.forEach(p => {
+                    texto += `${p.protocolo}${p.chamado ? ` | Chamado: ${p.chamado}` : ''}${p.responsavel ? ` | Atendente: ${p.responsavel}` : ''}\n`;
+                });
+            }
+            texto += `\n`;
+        });
+        navigator.clipboard.writeText(texto).then(() => {
+            alert('✓ Todos os protocolos do Top 3 foram copiados formatados!');
+        });
+    }
+
+    function baixarTxtGeralTop3Offline() {
+        if (!currentReport || !currentReport.top3 || currentReport.top3.length === 0) return;
+        let conteudo = `========================================================================\n`;
+        conteudo += `MKTZAP - PROTOCOLOS GERAIS DOS TOP ACIONAMENTOS\n`;
+        conteudo += `Data: ${currentReport.dataDoc} | Turno: ${currentReport.periodo}\n`;
+        conteudo += `========================================================================\n\n`;
+        currentReport.top3.forEach((top, idx) => {
+            const pct = currentReport.totalFin > 0 ? (top.qtd / currentReport.totalFin * 100).toFixed(1) : 0;
+            conteudo += `------------------------------------------------------------------------\n`;
+            conteudo += `${idx + 1}º LUGAR: ${top.nome} (${top.qtd} casos - ${pct}%)\n`;
+            conteudo += `------------------------------------------------------------------------\n`;
+            const lista = top.protocolos || [];
+            if (lista.length === 0) {
+                conteudo += `Nenhum protocolo registrado.\n\n`;
+            } else {
+                conteudo += `Nº\tPROTOCOLO\tCHAMADO\tATENDENTE\tSETOR\n`;
+                lista.forEach((p, pIdx) => {
+                    conteudo += `${pIdx+1}\t${p.protocolo}\t${p.chamado||'-'}\t${p.responsavel||'-'}\t${p.setor||'-'}\n`;
+                });
+                conteudo += `\nTotal: ${lista.length} registros\n\n`;
+            }
+        });
+        const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' });
+        saveAs(blob, `Top_Acionamentos_Protocolos_Geral.txt`);
+    }
+</script>
+
+<!-- MODAL DE PROTOCOLOS (OFFLINE) -->
+<div id="modalProtocolosOffline" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 120; padding: 16px;">
+    <div style="background: #0f172a; border: 1px solid #334155; border-radius: 20px; max-width: 650px; width: 100%; max-height: 90vh; display: flex; flex-direction: column; box-shadow: 0 25px 50px rgba(0,0,0,0.7); overflow: hidden;">
+        <div style="padding: 20px 24px; border-bottom: 1px solid #1e293b; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span id="modalProtoBadgeOffline" style="background: #064e3b; color: #6ee7b7; border: 1px solid #059669; font-size: 0.72rem; font-weight: 700; padding: 2px 8px; border-radius: 6px;">1º Lugar</span>
+                    <h3 id="modalProtoTituloOffline" style="font-size: 1.1rem; color: #fff; font-weight: 700;">Motivo</h3>
+                </div>
+                <p id="modalProtoSubtituloOffline" style="font-size: 0.78rem; color: #94a3b8; margin-top: 4px;">Casos encontrados</p>
+            </div>
+            <button type="button" onclick="fecharModalProtocolosOffline()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.4rem; cursor: pointer; padding: 4px;">✕</button>
+        </div>
+
+        <div style="padding: 14px 24px; background: rgba(15,23,42,0.6); border-bottom: 1px solid #1e293b; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+            <input type="text" id="filtroProtocolosOffline" oninput="filtrarProtocolosOffline()" placeholder="Pesquisar protocolo, atendente ou chamado..." style="flex: 1; min-width: 200px; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8rem;">
+            <button type="button" onclick="copiarTodosDoModalOffline()" style="background: #10b981; color: #064e3b; border: none; padding: 8px 14px; border-radius: 8px; font-size: 0.78rem; font-weight: 700; cursor: pointer;">
+                📋 Copiar Todos
+            </button>
+            <button type="button" onclick="baixarTxtDoModalOffline()" style="background: #1e293b; color: #93c5fd; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                💾 Baixar TXT
+            </button>
+            <button type="button" onclick="baixarCsvDoModalOffline()" style="background: #1e293b; color: #6ee7b7; border: 1px solid #334155; padding: 8px 12px; border-radius: 8px; font-size: 0.78rem; font-weight: 600; cursor: pointer;">
+                📊 Baixar CSV
+            </button>
+        </div>
+
+        <div id="listaProtocolosContainerOffline" style="padding: 16px 24px; overflow-y: auto; flex: 1; max-height: 400px; display: flex; flex-direction: column; gap: 8px;">
+        </div>
+
+        <div style="padding: 14px 24px; border-top: 1px solid #1e293b; background: #090d14; display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; color: #94a3b8;">
+            <span id="modalProtoContadorOffline">Exibindo 0 protocolos</span>
+            <button type="button" onclick="fecharModalProtocolosOffline()" style="background: #334155; color: #fff; border: none; padding: 6px 14px; border-radius: 6px; cursor: pointer;">Fechar</button>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>
