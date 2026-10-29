@@ -1,0 +1,6 @@
+{
+  "name": "Passagem de Turno MKTZAP",
+  "description": "Painel analítico moderno para processamento de relatórios MKTZAP, métricas por canal, ranking de acionamentos e geração de relatório Word para passagem de turno.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
