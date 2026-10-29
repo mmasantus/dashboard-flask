@@ -61,11 +61,12 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onOpenAtendentes}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-300 hover:text-white bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 rounded-lg transition-colors whitespace-nowrap"
-            title="Visualizar e configurar lista de integrantes da Equipe Experiência Brasil"
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-blue-300 hover:text-white bg-blue-950/50 hover:bg-blue-900/60 border border-blue-600/40 rounded-xl transition-colors whitespace-nowrap shadow-sm shadow-blue-900/20 cursor-pointer"
+            title="Equipe Experiência Brasil - Administrador: Marcio Miranda (Acesso Restrito)"
           >
             <Users className="w-3.5 h-3.5 text-blue-400" />
             <span className="hidden sm:inline">Equipe</span> Experiência Brasil
+            <span className="px-1.5 py-0.2 bg-blue-500/20 text-[10px] text-blue-300 rounded font-mono">Admin</span>
           </button>
 
           {hasData && (

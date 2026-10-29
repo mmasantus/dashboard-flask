@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passagem de Turno MKTZAP</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app-container">
+
+    <!-- HEADER -->
+    <header class="app-header">
+        <div class="header-brand">
+            <div class="brand-avatar">
+                <img src="{{ url_for('static', filename='icone.jpg') }}" alt="MKTZAP Logo" onerror="this.style.display='none'">
+            </div>
+            <div>
+                <h1>Passagem de Turno MKTZAP</h1>
+                <p>Consolidação de canais Whats GN, GV, Franquia & CB Commerce (Equipe Experiência Brasil)</p>
+            </div>
+        </div>
+
+        <div class="header-actions" style="display: flex; align-items: center; gap: 10px;">
+            <button type="button" class="btn-replace" onclick="abrirModalEquipe()" style="cursor: pointer; color: #93c5fd; border-color: rgba(59, 130, 246, 0.4);">
+                👥 Equipe Experiência Brasil
+            </button>
+            {% if dados_setores %}
+            <a href="/" class="btn-clear" onclick="return confirm('Deseja limpar os dados atuais e processar uma nova planilha?')">
+                🔄 Limpar Dados
+            </a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- MODAL EQUIPE EXPERIÊNCIA BRASIL (COM CONTROLE RESTRITO DE ADMINISTRADOR) -->
+    <div id="modalEquipe" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center; z-index: 100; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 18px; max-width: 500px; width: 100%; padding: 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.6);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h3 style="font-size: 1.1rem; color: #fff; font-weight: 700;">👥 Equipe Experiência Brasil</h3>
+                <button type="button" onclick="fecharModalEquipe()" style="background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer;">✕</button>
+            </div>
+            
+            <!-- Barra de Status do Administrador -->
+            <div id="barraAdminStatus" style="background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 10px 14px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center;">
+                <span id="textoAdminStatus" style="font-size: 0.78rem; font-weight: 600; color: #fbbf24;">🔒 Acesso Restrito (Requer Senha)</span>
+                <div>
+                    <button type="button" id="btnAdminTrocarSenha" onclick="abrirModalTrocarSenha()" style="display: none; background: #3b82f6; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer; margin-right: 6px;">🔑 Alterar Senha</button>
+                    <button type="button" id="btnAdminToggle" onclick="toggleAdminAuth()" style="background: #059669; color: white; border: none; padding: 4px 10px; border-radius: 6px; font-size: 0.72rem; font-weight: 600; cursor: pointer;">Desbloquear</button>
+                </div>
+            </div>
+
+            <p style="font-size: 0.78rem; color: #94a3b8; margin-bottom: 14px;">
+                Integrantes responsáveis pela fila Whats GV Antecipada. Para <strong>incluir ou excluir</strong> integrantes, é necessário ser o administrador da senha.
+            </p>
+            <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <input type="text" id="novoIntegrante" placeholder="Nome do atendente (ex: JOÃO SILVA)..." style="flex: 1; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 8px 12px; color: #fff; font-size: 0.8rem; text-transform: uppercase;">
+                <button type="button" onclick="tentarAdicionarIntegrante()" style="background: #2563eb; color: #fff; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; font-weight: 600; cursor: pointer;">Adicionar</button>
+            </div>
+            <div id="listaIntegrantes" style="max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; margin-bottom: 18px;"></div>
+            <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #1e293b; padding-top: 14px;">
+                <button type="button" onclick="tentarRestaurarPadrao()" style="background: transparent; border: none; color: #64748b; font-size: 0.75rem; cursor: pointer;">Restaurar Padrão</button>
+                <button type="button" onclick="fecharModalEquipe()" style="background: #10b981; color: #064e3b; border: none; border-radius: 8px; padding: 8px 18px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">Salvar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PEDIR SENHA DE ADMINISTRADOR -->
+    <div id="modalPedirSenha" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 150; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #10b981; border-radius: 16px; max-width: 400px; width: 100%; padding: 22px; box-shadow: 0 20px 40px rgba(0,0,0,0.7);">
+            <h4 style="font-size: 1rem; color: #fff; font-weight: 700; margin-bottom: 8px;">🔒 Senha de Administrador</h4>
+            <p id="msgPedirSenha" style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 14px;">
+                Esta ação requer a senha do Administrador da equipe Experiência Brasil.
+            </p>
+            <input type="password" id="inputSenhaAdmin" placeholder="Digite a senha (padrão: admin123)..." style="width: 100%; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 0.85rem; margin-bottom: 8px;">
+            <p id="erroSenhaAdmin" style="color: #f43f5e; font-size: 0.75rem; margin-bottom: 12px; display: none;">Senha incorreta! Apenas o administrador autorizado pode alterar.</p>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+                <button type="button" onclick="fecharModalPedirSenha()" style="background: #334155; color: #cbd5e1; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; cursor: pointer;">Cancelar</button>
+                <button type="button" onclick="confirmarSenhaAdmin()" style="background: #10b981; color: #064e3b; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL ALTERAR SENHA -->
+    <div id="modalTrocarSenha" class="hidden" style="position: fixed; inset: 0; background: rgba(0,0,0,0.85); display: flex; align-items: center; justify-content: center; z-index: 160; padding: 16px;">
+        <div style="background: #0f172a; border: 1px solid #3b82f6; border-radius: 16px; max-width: 400px; width: 100%; padding: 22px; box-shadow: 0 20px 40px rgba(0,0,0,0.7);">
+            <h4 style="font-size: 1rem; color: #fff; font-weight: 700; margin-bottom: 8px;">🔑 Alterar Senha de Administrador</h4>
+            <p style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 14px;">Defina sua nova senha pessoal de administrador.</p>
+            <input type="password" id="inputNovaSenha" placeholder="Digite a nova senha..." style="width: 100%; background: #090d14; border: 1px solid #334155; border-radius: 8px; padding: 10px 12px; color: #fff; font-size: 0.85rem; margin-bottom: 10px;">
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+                <button type="button" onclick="document.getElementById('modalTrocarSenha').classList.add('hidden')" style="background: #334155; color: #cbd5e1; border: none; border-radius: 8px; padding: 8px 14px; font-size: 0.8rem; cursor: pointer;">Cancelar</button>
+                <button type="button" onclick="salvarNovaSenhaAdmin()" style="background: #3b82f6; color: #fff; border: none; border-radius: 8px; padding: 8px 16px; font-size: 0.8rem; font-weight: 700; cursor: pointer;">Salvar Senha</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FORMAT ERROR NOTIFICATION -->
+    {% if erro_formato %}
+    <div class="alert-box error animate-fade">
+        <span class="alert-icon">⚠️</span>
+        <div class="alert-content">
+            <strong>Formato não suportado:</strong>
+            <p>{{ erro_formato }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- UPLOAD ZONE (QUANDO NÃO HÁ DADOS) -->
+    {% if not dados_setores %}
+    <section class="upload-section">
+        <div class="upload-dropzone" id="dropzone">
+            <form method="POST" enctype="multipart/form-data" id="uploadForm">
+                <input type="hidden" name="equipe_integrantes" id="hiddenEquipeIntegrantes">
+                <div class="upload-icon-wrapper">
+                    📁
+                </div>
+                <h2>Arraste o relatório do MKTZAP aqui</h2>
+                <p>Ou clique no botão abaixo para selecionar a planilha no seu computador</p>
+
+                <div class="format-badges">
+                    <span class="badge">.html / .htm</span>
+                    <span class="badge">.xlsx / .xls</span>
+                    <span class="badge">.csv</span>
+                </div>
+
+                <label class="btn-select-file">
+                    Escolher Arquivo no Computador
+                    <input type="file" name="arquivo" id="fileInput" accept=".xls,.xlsx,.html,.htm,.csv" required hidden>
+                </label>
+
+                <div id="fileSelectedInfo" class="file-selected-info hidden">
+                    <span id="fileNameDisplay"></span>
+                    <button type="submit" class="btn-process">🚀 Processar Dados do Turno</button>
+                </div>
+            </form>
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- CONTEÚDO PROCESSADO -->
+    {% if dados_setores %}
+    <main class="dashboard-content animate-fade">
+
+        <!-- STATUS BAR -->
+        <div class="status-bar">
+            <div class="status-info">
+                <span class="pill-active">✓ Planilha Processada</span>
+                <span class="file-title">{{ nome_arquivo }}</span>
+            </div>
+            <a href="/" class="btn-replace">Trocar Arquivo</a>
+        </div>
+
+        <!-- KPI SUMMARY STRIP -->
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <span class="kpi-label">Total Finalizados</span>
+                <div class="kpi-value font-mono">{{ total_finalizados }}</div>
+                <span class="kpi-sub">Atendimentos no turno</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Total Chamados</span>
+                <div class="kpi-value font-mono text-blue">{{ total_chamados }}</div>
+                <span class="kpi-sub">Tickets abertos</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Taxa de Chamados</span>
+                <div class="kpi-value font-mono text-amber">{{ taxa_geral }}%</div>
+                <span class="kpi-sub">Chamados / Finalizados</span>
+            </div>
+
+            <div class="kpi-card">
+                <span class="kpi-label">Canal Líder</span>
+                <div class="kpi-value truncate text-purple">{{ canal_lider }}</div>
+                <span class="kpi-sub">Maior volume registrado</span>
+            </div>
+        </div>
+
+        <!-- SECTORS BOARD -->
+        <div class="section-card">
+            <div class="section-header">
+                <div>
+                    <h3>📊 Consolidação por Canal de Atendimento</h3>
+                    <p>Distribuição de chamados e finalizações por fila de atendimento</p>
+                </div>
+                <span class="badge-count">5 canais monitorados</span>
+            </div>
+
+            <div class="table-responsive">
+                <table class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Canal / Fila</th>
+                            <th class="text-right">Finalizados</th>
+                            <th class="text-right">Chamados</th>
+                            <th class="text-center">Pendências</th>
+                            <th class="text-right">Carga %</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><span class="sector-tag dot-green"></span><strong>Whats GN</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats GN"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats GN"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats GN"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-blue"></span><strong>Whats GV</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats GV"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats GV"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats GV"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-purple"></span><strong>Whats GV Antecipada</strong></td>
+                            <td class="text-right font-mono font-bold">{{ gv_antecipada["total"] }}</td>
+                            <td class="text-right font-mono">{{ gv_antecipada["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(gv_antecipada["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-amber"></span><strong>Whats Franquia</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["Whats Franquia"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["Whats Franquia"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["Whats Franquia"]["percentual"]) }}%</td>
+                        </tr>
+                        <tr>
+                            <td><span class="sector-tag dot-cyan"></span><strong>Whats CB Commerce</strong></td>
+                            <td class="text-right font-mono font-bold">{{ dados_setores["CB Commerce"]["total"] }}</td>
+                            <td class="text-right font-mono">{{ dados_setores["CB Commerce"]["chamados"] }}</td>
+                            <td class="text-center font-mono text-amber">00</td>
+                            <td class="text-right font-mono font-bold">{{ "%.1f"|format(dados_setores["CB Commerce"]["percentual"]) }}%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 2 COLUNAS: TOP ACIONAMENTOS + DOCUMENTO WORD -->
+        <div class="dual-grid">
+
+            <!-- COLUNA ESQUERDA: TOP ACIONAMENTOS -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h3>🏆 Top Acionamentos (Função do Sistema)</h3>
+                        <p>Principais motivos demandados na operação</p>
+                    </div>
+                </div>
+
+                <div class="top-list">
+                    {% for item in top_funcoes %}
+                    <div class="top-item medal-{{ item.pos }}">
+                        <div class="top-item-header">
+                            <span class="rank-badge">{{ item.pos }}º</span>
+                            <span class="rank-name">{{ item.nome }}</span>
+                            <span class="rank-count font-mono">{{ item.quantidade }} ({{ item.percentual }}%)</span>
+                        </div>
+                        <div class="rank-bar">
+                            <div class="rank-fill" style="width: {{ item.percentual }}%;"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+
+                    {% if demais_count > 0 %}
+                    <div class="info-note">
+                        ℹ️ Demais casos tiveram apenas 1 registro (+{{ demais_count }} funções adicionais)
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- COLUNA DIREITA: PRÉ-VISUALIZAÇÃO E DOWNLOAD WORD -->
+            <div class="section-card">
+                <div class="section-header">
+                    <div>
+                        <h3>📋 Ata de Passagem de Turno</h3>
+                        <p>Modelo oficial atualizado com os dados extraídos</p>
+                    </div>
+                </div>
+
+                <div class="word-preview-box">
+                    <pre id="whatsappText" class="font-mono">📋 Passagem de Turno MKTZAP
+🕗 {{ periodo_turno }} | 📅{{ data_atual }}
+
+━━━━━━━━━━━━━━
+📲 Whats GN
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats GN"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats GN"]["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats GV
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats GV"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats GV"]["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats GV Antecipada 
+✅ Finalizados: {{ "%02d"|format(gv_antecipada["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(gv_antecipada["chamados"]) }}
+⚠️ Pendências: 00
+
+
+📲 Whats Franquia
+✅ Finalizados: {{ "%02d"|format(dados_setores["Whats Franquia"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["Whats Franquia"]["chamados"]) }}
+⚠️ Pendências: 00
+
+📲 Whats CB Commerce
+✅ Finalizados: {{ "%02d"|format(dados_setores["CB Commerce"]["total"]) }}
+⚙️ Chamados: {{ "%02d"|format(dados_setores["CB Commerce"]["chamados"]) }}
+⚠️ Pendências: 00
+
+🏆 Top Acionamentos
+
+
+{% for item in top_funcoes %}{{ item.pos }}º {{ item.nome }}: {{ item.quantidade }}
+{% endfor %}</pre>
+                </div>
+
+                <!-- FORMULÁRIO PARA DOWNLOAD WORD -->
+                <form action="/download_word" method="POST" class="download-actions">
+                    <input type="hidden" name="gn_fin" value="{{ dados_setores['Whats GN']['total'] }}">
+                    <input type="hidden" name="gn_cha" value="{{ dados_setores['Whats GN']['chamados'] }}">
+                    <input type="hidden" name="gn_pen" value="0">
+
+                    <input type="hidden" name="gv_fin" value="{{ dados_setores['Whats GV']['total'] }}">
+                    <input type="hidden" name="gv_cha" value="{{ dados_setores['Whats GV']['chamados'] }}">
+                    <input type="hidden" name="gv_pen" value="0">
+
+                    <input type="hidden" name="gva_fin" value="{{ gv_antecipada['total'] }}">
+                    <input type="hidden" name="gva_cha" value="{{ gv_antecipada['chamados'] }}">
+                    <input type="hidden" name="gva_pen" value="0">
+
+                    <input type="hidden" name="fra_fin" value="{{ dados_setores['Whats Franquia']['total'] }}">
+                    <input type="hidden" name="fra_cha" value="{{ dados_setores['Whats Franquia']['chamados'] }}">
+                    <input type="hidden" name="fra_pen" value="0">
+
+                    <input type="hidden" name="cb_fin" value="{{ dados_setores['CB Commerce']['total'] }}">
+                    <input type="hidden" name="cb_cha" value="{{ dados_setores['CB Commerce']['chamados'] }}">
+                    <input type="hidden" name="cb_pen" value="0">
+
+                    {% for item in top_funcoes %}
+                    <input type="hidden" name="top{{ item.pos }}" value="{{ item.pos }}º {{ item.nome }}: {{ item.quantidade }}">
+                    {% endfor %}
+
+                    <input type="hidden" name="periodo" value="{{ periodo_turno }}">
+                    <input type="hidden" name="data" value="{{ data_atual }}">
+
+                    <button type="button" class="btn-copy" onclick="copiarWhatsApp()">
+                        📋 Copiar para WhatsApp
+                    </button>
+
+                    <button type="submit" class="btn-download">
+                        📥 Baixar Arquivo Word (.docx)
+                    </button>
+                </form>
+            </div>
+
+        </div>
+
+    </main>
+    {% endif %}
+
+    <!-- FOOTER -->
+    <footer class="app-footer">
+        <p>Sistema de Passagem de Turno MKTZAP • Versão 2.5</p>
+    </footer>
+
+</div>
+
+<!-- SCRIPT DE INTERATIVIDADE -->
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const fileSelectedInfo = document.getElementById('fileSelectedInfo');
+    const fileNameDisplay = document.getElementById('fileNameDisplay');
+    const dropzone = document.getElementById('dropzone');
+
+    if (fileInput) {
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                fileNameDisplay.textContent = '📄 Arquivo: ' + file.name;
+                fileSelectedInfo.classList.remove('hidden');
+            }
+        });
+    }
+
+    if (dropzone) {
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.add('drag-active');
+            }, false);
+        });
+
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => {
+                e.preventDefault();
+                dropzone.classList.remove('drag-active');
+            }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                fileInput.files = e.dataTransfer.files;
+                fileNameDisplay.textContent = '📄 Arquivo: ' + e.dataTransfer.files[0].name;
+                fileSelectedInfo.classList.remove('hidden');
+            }
+        });
+    }
+
+    const DEFAULT_EQUIPE = [
+        "RAFAELLA CRISTINY JACINTO CAMILO",
+        "VANESSA DUARTE",
+        "MARCIO MIRANDA ALVES DOS SANTOS",
+        "WILLIANE BORGES",
+        "LUIS GUILHERME TEODORO DOS SANTOS",
+        "ADRIANA CONCEICAO DE OLIVEIRA",
+        "DANIELA COELHO"
+    ];
+
+    let equipeAtiva = (() => {
+        try {
+            const saved = localStorage.getItem('mktzap_equipe_experiencia_brasil');
+            if (saved) return JSON.parse(saved);
+        } catch(e) {}
+        return [...DEFAULT_EQUIPE];
+    })();
+
+    // ADMIN PASSWORD CONTROLLER
+    let adminUnlocked = false;
+    let pendingCallback = null;
+
+    function getAdminPassword() {
+        return localStorage.getItem('mktzap_admin_senha') || 'admin123';
+    }
+
+    function syncEquipeForm() {
+        const hid = document.getElementById('hiddenEquipeIntegrantes');
+        if (hid) {
+            hid.value = equipeAtiva.join(',');
+        }
+    }
+    syncEquipeForm();
+
+    const uploadForm = document.getElementById('uploadForm');
+    if (uploadForm) {
+        uploadForm.addEventListener('submit', () => {
+            syncEquipeForm();
+        });
+    }
+
+    function atualizarBarraStatusAdmin() {
+        const txt = document.getElementById('textoAdminStatus');
+        const btnToggle = document.getElementById('btnAdminToggle');
+        const btnTrocar = document.getElementById('btnAdminTrocarSenha');
+        if (adminUnlocked) {
+            txt.innerHTML = '🟢 <strong>Modo Administrador Ativo</strong>';
+            txt.style.color = '#10b981';
+            btnToggle.textContent = 'Bloquear';
+            btnToggle.style.background = '#e11d48';
+            btnTrocar.style.display = 'inline-block';
+        } else {
+            txt.innerHTML = '🔒 <strong>Acesso Restrito (Requer Senha)</strong>';
+            txt.style.color = '#fbbf24';
+            btnToggle.textContent = 'Desbloquear';
+            btnToggle.style.background = '#059669';
+            btnTrocar.style.display = 'none';
+        }
+    }
+
+    function toggleAdminAuth() {
+        if (adminUnlocked) {
+            adminUnlocked = false;
+            atualizarBarraStatusAdmin();
+        } else {
+            solicitarSenhaAdmin('desbloquear o modo administrador', () => {
+                adminUnlocked = true;
+                atualizarBarraStatusAdmin();
+            });
+        }
+    }
+
+    function solicitarSenhaAdmin(acaoTexto, callback) {
+        if (adminUnlocked) {
+            callback();
+            return;
+        }
+        pendingCallback = callback;
+        document.getElementById('msgPedirSenha').innerHTML = `Para <strong>${acaoTexto}</strong>, informe a senha de Administrador:`;
+        document.getElementById('inputSenhaAdmin').value = '';
+        document.getElementById('erroSenhaAdmin').style.display = 'none';
+        document.getElementById('modalPedirSenha').classList.remove('hidden');
+    }
+
+    function fecharModalPedirSenha() {
+        document.getElementById('modalPedirSenha').classList.add('hidden');
+        pendingCallback = null;
+    }
+
+    function confirmarSenhaAdmin() {
+        const digitada = document.getElementById('inputSenhaAdmin').value;
+        const correta = getAdminPassword();
+        if (digitada === correta) {
+            adminUnlocked = true;
+            fecharModalPedirSenha();
+            atualizarBarraStatusAdmin();
+            if (pendingCallback) {
+                pendingCallback();
+                pendingCallback = null;
+            }
+        } else {
+            document.getElementById('erroSenhaAdmin').style.display = 'block';
+        }
+    }
+
+    function abrirModalTrocarSenha() {
+        document.getElementById('inputNovaSenha').value = '';
+        document.getElementById('modalTrocarSenha').classList.remove('hidden');
+    }
+
+    function salvarNovaSenhaAdmin() {
+        const nova = document.getElementById('inputNovaSenha').value.trim();
+        if (nova.length >= 4) {
+            localStorage.setItem('mktzap_admin_senha', nova);
+            document.getElementById('modalTrocarSenha').classList.add('hidden');
+            alert('✓ Senha de administrador alterada com sucesso!');
+        } else {
+            alert('A senha deve ter no mínimo 4 caracteres.');
+        }
+    }
+
+    function abrirModalEquipe() {
+        atualizarBarraStatusAdmin();
+        renderListaEquipe();
+        document.getElementById('modalEquipe').classList.remove('hidden');
+    }
+
+    function fecharModalEquipe() {
+        document.getElementById('modalEquipe').classList.add('hidden');
+    }
+
+    function renderListaEquipe() {
+        const div = document.getElementById('listaIntegrantes');
+        div.innerHTML = '';
+        equipeAtiva.forEach((nome, idx) => {
+            const item = document.createElement('div');
+            item.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:#1e293b;padding:8px 12px;border-radius:8px;font-size:0.75rem;color:#f1f5f9;';
+            item.innerHTML = `
+                <span style="font-weight:600;">${nome}</span>
+                <button type="button" onclick="tentarRemoverIntegrante(${idx}, '${nome}')" style="background:transparent;border:none;color:#f43f5e;font-size:0.9rem;cursor:pointer;" title="Remover">✕</button>
+            `;
+            div.appendChild(item);
+        });
+    }
+
+    function salvarEquipe() {
+        localStorage.setItem('mktzap_equipe_experiencia_brasil', JSON.stringify(equipeAtiva));
+        syncEquipeForm();
+        renderListaEquipe();
+    }
+
+    function tentarAdicionarIntegrante() {
+        const inp = document.getElementById('novoIntegrante');
+        const val = inp.value.trim().toUpperCase();
+        if (!val) return;
+        if (equipeAtiva.includes(val)) {
+            alert('Este integrante já está na lista.');
+            return;
+        }
+
+        solicitarSenhaAdmin(`adicionar "${val}"`, () => {
+            equipeAtiva.push(val);
+            inp.value = '';
+            salvarEquipe();
+        });
+    }
+
+    function tentarRemoverIntegrante(idx, nome) {
+        solicitarSenhaAdmin(`remover "${nome}"`, () => {
+            equipeAtiva.splice(idx, 1);
+            salvarEquipe();
+        });
+    }
+
+    function tentarRestaurarPadrao() {
+        solicitarSenhaAdmin('restaurar a equipe padrão', () => {
+            equipeAtiva = [...DEFAULT_EQUIPE];
+            salvarEquipe();
+        });
+    }
+
+    function copiarWhatsApp() {
+        const text = document.getElementById('whatsappText').innerText;
+        navigator.clipboard.writeText(text).then(() => {
+            alert('✓ Modelo copiado para a área de transferência! Pronto para colar no WhatsApp.');
+        });
+    }
+</script>
+
+</body>
+</html>
