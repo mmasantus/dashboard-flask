@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#0ea5e9" />
+    </linearGradient>
+    <linearGradient id="bubbleGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#f0fdf4" />
+    </linearGradient>
+  </defs>
+  <!-- Background Badge -->
+  <rect width="64" height="64" rx="16" fill="url(#bgGrad)"/>
+  <!-- Modern Clean Shift & Communication Emblem -->
+  <g transform="translate(10, 10)">
+    <!-- Primary Message Bubble -->
+    <path d="M4 14C4 8.477 8.477 4 14 4H30C35.523 4 40 8.477 40 14V22C40 27.523 35.523 32 30 32H20L11 39V31.5C6.8 30.5 4 26.8 4 22V14Z" fill="url(#bubbleGrad)"/>
+    <!-- Clean Minimalist Handover Arrows / Check Mark -->
+    <path d="M16 18L21 23L31 13" stroke="#059669" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="33" cy="23" r="2" fill="#0ea5e9"/>
+  </g>
+</svg>
