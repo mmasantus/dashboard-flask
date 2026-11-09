@@ -1,6 +1,7 @@
 {
   "name": "Passagem de Turno MKTZAP",
   "description": "Painel analítico e consolidador de passagem de turno MKTZAP com métricas por canal, ranking de acionamentos, exportação Word e controle de acesso restrito de administrador para a equipe Experiência Brasil.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
